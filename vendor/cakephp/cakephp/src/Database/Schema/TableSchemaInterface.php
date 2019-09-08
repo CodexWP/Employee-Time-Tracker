@@ -18,8 +18,6 @@ use Cake\Datasource\SchemaInterface;
 
 /**
  * An interface used by database TableSchema objects.
- *
- * Deprecated 3.5.0: Use Cake\Database\TableSchemaAwareInterface instead.
  */
 interface TableSchemaInterface extends SchemaInterface
 {
@@ -201,7 +199,7 @@ interface TableSchemaInterface extends SchemaInterface
     /**
      * Get the names of all the indexes in the table.
      *
-     * @return array
+     * @return string[]
      */
     public function indexes();
 
@@ -246,7 +244,7 @@ interface TableSchemaInterface extends SchemaInterface
     /**
      * Get the names of all the constraints in the table.
      *
-     * @return array
+     * @return string[]
      */
     public function constraints();
 }

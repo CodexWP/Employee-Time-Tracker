@@ -45,7 +45,7 @@ use RuntimeException;
  * @method mixed min($field, $type = SORT_NUMERIC) Returns the minimum value for a single column in all the results.
  * @method \Cake\Collection\CollectionInterface groupBy(string|callable $field) In-memory group all results by the value of a column.
  * @method \Cake\Collection\CollectionInterface indexBy(string|callable $field) Returns the results indexed by the value of a column.
- * @method int countBy(string|callable $field) Returns the number of unique values for a column
+ * @method \Cake\Collection\CollectionInterface countBy(string|callable $field) Returns the number of unique values for a column
  * @method float sumOf(string|callable $field) Returns the sum of all values for a single column
  * @method \Cake\Collection\CollectionInterface shuffle() In-memory randomize the order the results are returned
  * @method \Cake\Collection\CollectionInterface sample($size = 10) In-memory shuffle the results and return a subset of them.
@@ -66,11 +66,9 @@ use RuntimeException;
  *   with the first rows of the query and each of the items, then the second rows and so on.
  * @method \Cake\Collection\CollectionInterface chunk($size) Groups the results in arrays of $size rows each.
  * @method bool isEmpty() Returns true if this query found no results.
- * @mixin \Cake\Datasource\QueryTrait
  */
 class Query extends DatabaseQuery implements JsonSerializable, QueryInterface
 {
-
     use QueryTrait {
         cache as private _cache;
         all as private _all;
@@ -233,7 +231,7 @@ class Query extends DatabaseQuery implements JsonSerializable, QueryInterface
      *
      *
      * @param \Cake\ORM\Table|\Cake\ORM\Association $table The table to use to get an array of columns
-     * @param array $excludedFields The un-aliased column names you do not want selected from $table
+     * @param string[] $excludedFields The un-aliased column names you do not want selected from $table
      * @param bool $overwrite Whether to reset/remove previous selected fields
      * @return Query
      * @throws \InvalidArgumentException If Association|Table is not passed in first argument
@@ -1011,6 +1009,22 @@ class Query extends DatabaseQuery implements JsonSerializable, QueryInterface
     }
 
     /**
+     * Disable hydrating entities.
+     *
+     * Disabling hydration will cause array results to be returned for the query
+     * instead of entities.
+     *
+     * @return $this
+     */
+    public function disableHydration()
+    {
+        $this->_dirty();
+        $this->_hydrate = false;
+
+        return $this;
+    }
+
+    /**
      * Returns the current hydration mode.
      *
      * @return bool
@@ -1269,6 +1283,7 @@ class Query extends DatabaseQuery implements JsonSerializable, QueryInterface
         $repository = $this->getRepository();
         $this->from([$repository->getAlias() => $repository->getTable()]);
 
+        // We do not pass $table to parent class here
         return parent::delete();
     }
 
@@ -1354,6 +1369,18 @@ class Query extends DatabaseQuery implements JsonSerializable, QueryInterface
     public function enableAutoFields($value = true)
     {
         $this->_autoFields = (bool)$value;
+
+        return $this;
+    }
+
+    /**
+     * Disables automatically appending fields.
+     *
+     * @return $this
+     */
+    public function disableAutoFields()
+    {
+        $this->_autoFields = false;
 
         return $this;
     }

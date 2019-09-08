@@ -299,7 +299,7 @@ class Query implements ExpressionInterface, IteratorAggregate
      * ```
      *
      * @param callable $visitor A function or callable to be executed for each part
-     * @param array $parts The query clauses to traverse
+     * @param string[] $parts The query clauses to traverse
      * @return $this
      */
     public function traverse(callable $visitor, array $parts = [])
@@ -484,6 +484,8 @@ class Query implements ExpressionInterface, IteratorAggregate
     public function from($tables = [], $overwrite = false)
     {
         if (empty($tables)) {
+            deprecationWarning('Using Query::from() to read state is deprecated. Use clause("from") instead.');
+
             return $this->_parts['from'];
         }
 
@@ -589,6 +591,8 @@ class Query implements ExpressionInterface, IteratorAggregate
     public function join($tables = null, $types = [], $overwrite = false)
     {
         if ($tables === null) {
+            deprecationWarning('Using Query::join() to read state is deprecated. Use Query::clause("join") instead.');
+
             return $this->_parts['join'];
         }
 
@@ -672,7 +676,7 @@ class Query implements ExpressionInterface, IteratorAggregate
      *
      * See `join()` for further details on conditions and types.
      *
-     * @param string|array $table The table to join with
+     * @param string|string[] $table The table to join with
      * @param string|array|\Cake\Database\ExpressionInterface $conditions The conditions
      * to use for joining.
      * @param array $types a list of types associated to the conditions used for converting
@@ -712,7 +716,7 @@ class Query implements ExpressionInterface, IteratorAggregate
      * The arguments of this method are identical to the `leftJoin()` shorthand, please refer
      * to that methods description for further details.
      *
-     * @param string|array $table The table to join with
+     * @param string|string[] $table The table to join with
      * @param string|array|\Cake\Database\ExpressionInterface $conditions The conditions
      * to use for joining.
      * @param array $types a list of types associated to the conditions used for converting
@@ -727,7 +731,7 @@ class Query implements ExpressionInterface, IteratorAggregate
     /**
      * Returns an array that can be passed to the join method describing a single join clause
      *
-     * @param string|array $table The table to join with
+     * @param string|string[] $table The table to join with
      * @param string|array|\Cake\Database\ExpressionInterface $conditions The conditions
      * to use for joining.
      * @param string $type the join type to use
@@ -1534,7 +1538,7 @@ class Query implements ExpressionInterface, IteratorAggregate
      * with Query::values().
      *
      * @param array $columns The columns to insert into.
-     * @param array $types A map between columns & their datatypes.
+     * @param string[] $types A map between columns & their datatypes.
      * @return $this
      * @throws \RuntimeException When there are 0 columns.
      */
@@ -1956,16 +1960,9 @@ class Query implements ExpressionInterface, IteratorAggregate
     /**
      * Associates a query placeholder to a value and a type.
      *
-     * If type is expressed as "atype[]" (note braces) then it will cause the
-     * placeholder to be re-written dynamically so if the value is an array, it
-     * will create as many placeholders as values are in it. For example:
-     *
      * ```
-     * $query->bind(':id', [1, 2, 3], 'int[]');
+     * $query->bind(':id', 1, 'integer');
      * ```
-     *
-     * Will create 3 int placeholders. When using named placeholders, this method
-     * requires that the placeholders include `:` e.g. `:value`.
      *
      * @param string|int $param placeholder to be replaced with quoted version
      *   of $value
@@ -2061,6 +2058,22 @@ class Query implements ExpressionInterface, IteratorAggregate
     {
         $this->_dirty();
         $this->_useBufferedResults = (bool)$enable;
+
+        return $this;
+    }
+
+    /**
+     * Disables buffered results.
+     *
+     * Disabling buffering will consume less memory as fetched results are not
+     * remembered for future iterations.
+     *
+     * @return $this
+     */
+    public function disableBufferedResults()
+    {
+        $this->_dirty();
+        $this->_useBufferedResults = false;
 
         return $this;
     }

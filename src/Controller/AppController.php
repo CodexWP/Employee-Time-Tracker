@@ -45,7 +45,7 @@ class AppController extends Controller
     public function initialize()
     {
         parent::initialize();
-
+        $this->loadComponent('Csrf');
         $this->loadComponent('RequestHandler', [
             'enableBeforeRedirect' => false,
         ]);

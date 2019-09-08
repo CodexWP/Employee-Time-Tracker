@@ -210,6 +210,18 @@ class EagerLoader
     }
 
     /**
+     * Disable auto loading fields of contained associations.
+     *
+     * @return $this
+     */
+    public function disableAutoFields()
+    {
+        $this->_autoFields = false;
+
+        return $this;
+    }
+
+    /**
      * Gets whether or not contained associations will load fields automatically.
      *
      * @return bool The current value.
@@ -545,7 +557,14 @@ class EagerLoader
 
         $paths += ['aliasPath' => '', 'propertyPath' => '', 'root' => $alias];
         $paths['aliasPath'] .= '.' . $alias;
-        $paths['propertyPath'] .= '.' . $instance->getProperty();
+
+        if (isset($options['matching']) &&
+           $options['matching'] === true
+        ) {
+            $paths['propertyPath'] = '_matchingData.' . $alias;
+        } else {
+            $paths['propertyPath'] .= '.' . $instance->getProperty();
+        }
 
         $table = $instance->getTarget();
 

@@ -40,7 +40,6 @@ use Traversable;
  * @method string email($fieldName, array $options = [])
  * @method string password($fieldName, array $options = [])
  * @method string search($fieldName, array $options = [])
- *
  * @property \Cake\View\Helper\HtmlHelper $Html
  * @property \Cake\View\Helper\UrlHelper $Url
  * @link https://book.cakephp.org/3.0/en/views/helpers/form.html
@@ -163,7 +162,11 @@ class FormHelper extends Helper
             'textarea' => '<textarea name="{{name}}"{{attrs}}>{{value}}</textarea>',
             // Container for submit buttons.
             'submitContainer' => '<div class="submit">{{content}}</div>',
-        ]
+            //Confirm javascript template for postLink()
+            'confirmJs' => '{{confirm}}',
+        ],
+        // set HTML5 validation message to custom required/empty messages
+        'autoSetCustomValidity' => false,
     ];
 
     /**
@@ -213,7 +216,7 @@ class FormHelper extends Helper
      *
      * @see \Cake\View\Helper\FormHelper::_secure()
      * @see \Cake\Controller\Component\SecurityComponent::validatePost()
-     * @var array
+     * @var string[]
      */
     protected $_unlockedFields = [];
 
@@ -249,14 +252,14 @@ class FormHelper extends Helper
     /**
      * The sources to be used when retrieving prefilled input values.
      *
-     * @var array
+     * @var string[]
      */
     protected $_valueSources = ['context'];
 
     /**
      * Grouped input types.
      *
-     * @var array
+     * @var string[]
      */
     protected $_groupedInputTypes = ['radio', 'multicheckbox', 'date', 'time', 'datetime'];
 
@@ -447,7 +450,7 @@ class FormHelper extends Helper
         unset($options['templates']);
 
         if ($options['action'] === false || $options['url'] === false) {
-            $url = $this->request->getRequestTarget();
+            $url = $this->_View->getRequest()->getRequestTarget();
             $action = null;
         } else {
             $url = $this->_formUrl($context, $options);
@@ -525,8 +528,10 @@ class FormHelper extends Helper
      */
     protected function _formUrl($context, $options)
     {
+        $request = $this->_View->getRequest();
+
         if ($options['action'] === null && $options['url'] === null) {
-            return $this->request->getRequestTarget();
+            return $request->getRequestTarget();
         }
 
         if (is_string($options['url']) ||
@@ -540,9 +545,9 @@ class FormHelper extends Helper
         }
 
         $actionDefaults = [
-            'plugin' => $this->plugin,
-            'controller' => $this->request->getParam('controller'),
-            'action' => $this->request->getParam('action'),
+            'plugin' => $this->_View->getPlugin(),
+            'controller' => $request->getParam('controller'),
+            'action' => $request->getParam('action'),
         ];
 
         $action = (array)$options['url'] + $actionDefaults;
@@ -569,7 +574,9 @@ class FormHelper extends Helper
         $action = Router::url($url, true);
         $query = parse_url($action, PHP_URL_QUERY);
         $query = $query ? '?' . $query : '';
-        $this->_lastAction = parse_url($action, PHP_URL_PATH) . $query;
+
+        $path = parse_url($action, PHP_URL_PATH) ?: '';
+        $this->_lastAction = $path . $query;
     }
 
     /**
@@ -581,17 +588,19 @@ class FormHelper extends Helper
      */
     protected function _csrfField()
     {
-        if ($this->request->getParam('_Token.unlockedFields')) {
-            foreach ((array)$this->request->getParam('_Token.unlockedFields') as $unlocked) {
+        $request = $this->_View->getRequest();
+
+        if ($request->getParam('_Token.unlockedFields')) {
+            foreach ((array)$request->getParam('_Token.unlockedFields') as $unlocked) {
                 $this->_unlockedFields[] = $unlocked;
             }
         }
-        if (!$this->request->getParam('_csrfToken')) {
+        if (!$request->getParam('_csrfToken')) {
             return '';
         }
 
         return $this->hidden('_csrfToken', [
-            'value' => $this->request->getParam('_csrfToken'),
+            'value' => $request->getParam('_csrfToken'),
             'secure' => static::SECURE_SKIP,
             'autocomplete' => 'off',
         ]);
@@ -612,7 +621,7 @@ class FormHelper extends Helper
     {
         $out = '';
 
-        if ($this->requestType !== 'get' && $this->request->getParam('_Token')) {
+        if ($this->requestType !== 'get' && $this->_View->getRequest()->getParam('_Token')) {
             $out .= $this->secure($this->fields, $secureAttributes);
             $this->fields = [];
             $this->_unlockedFields = [];
@@ -645,7 +654,7 @@ class FormHelper extends Helper
      */
     public function secure(array $fields = [], array $secureAttributes = [])
     {
-        if (!$this->request->getParam('_Token')) {
+        if (!$this->_View->getRequest()->getParam('_Token')) {
             return '';
         }
         $debugSecurity = Configure::read('debug');
@@ -698,10 +707,10 @@ class FormHelper extends Helper
         if ($name === null) {
             return $this->_unlockedFields;
         }
-        if (!in_array($name, $this->_unlockedFields)) {
+        if (!in_array($name, $this->_unlockedFields, true)) {
             $this->_unlockedFields[] = $name;
         }
-        $index = array_search($name, $this->fields);
+        $index = array_search($name, $this->fields, true);
         if ($index !== false) {
             unset($this->fields[$index]);
         }
@@ -740,7 +749,7 @@ class FormHelper extends Helper
         $field = preg_replace('/(\.\d+)+$/', '', $field);
 
         if ($lock) {
-            if (!in_array($field, $this->fields)) {
+            if (!in_array($field, $this->fields, true)) {
                 if ($value !== null) {
                     $this->fields[$field] = $value;
 
@@ -796,7 +805,7 @@ class FormHelper extends Helper
         if (!$context->hasError($field)) {
             return '';
         }
-        $error = (array)$context->error($field);
+        $error = $context->error($field);
 
         if (is_array($text)) {
             $tmp = [];
@@ -1094,7 +1103,7 @@ class FormHelper extends Helper
 
         if ($legend === true) {
             $isCreate = $context->isCreate();
-            $modelName = Inflector::humanize(Inflector::singularize($this->request->getParam('controller')));
+            $modelName = Inflector::humanize(Inflector::singularize($this->_View->getRequest()->getParam('controller')));
             if (!$isCreate) {
                 $legend = __d('cake', 'Edit {0}', $modelName);
             } else {
@@ -1443,8 +1452,26 @@ class FormHelper extends Helper
     {
         $context = $this->_getContext();
 
+        $options += [
+            'templateVars' => []
+        ];
+
         if (!isset($options['required']) && $options['type'] !== 'hidden') {
             $options['required'] = $context->isRequired($fieldName);
+        }
+
+        if (method_exists($context, 'getRequiredMessage')) {
+            $message = $context->getRequiredMessage($fieldName);
+            $message = h($message);
+
+            if ($options['required'] && $message) {
+                $options['templateVars']['customValidityMessage'] = $message;
+
+                if ($this->getConfig('autoSetCustomValidity')) {
+                    $options['oninvalid'] = "this.setCustomValidity(''); if (!this.validity.valid) this.setCustomValidity('$message')";
+                    $options['oninput'] = "this.setCustomValidity('')";
+                }
+            }
         }
 
         $type = $context->type($fieldName);
@@ -1476,13 +1503,22 @@ class FormHelper extends Helper
             unset($options['step']);
         }
 
-        $autoLength = !array_key_exists('maxlength', $options)
-            && !empty($fieldDef['length'])
-            && $options['type'] !== 'select';
+        $typesWithMaxLength = ['text', 'textarea', 'email', 'tel', 'url', 'search'];
+        if (!array_key_exists('maxlength', $options)
+            && in_array($options['type'], $typesWithMaxLength)
+        ) {
+            $maxLength = null;
+            if (method_exists($context, 'getMaxLength')) {
+                $maxLength = $context->getMaxLength($fieldName);
+            }
 
-        $allowedTypes = ['text', 'textarea', 'email', 'tel', 'url', 'search'];
-        if ($autoLength && in_array($options['type'], $allowedTypes)) {
-            $options['maxlength'] = min($fieldDef['length'], 100000);
+            if ($maxLength === null && !empty($fieldDef['length'])) {
+                $maxLength = $fieldDef['length'];
+            }
+
+            if ($maxLength !== null) {
+                $options['maxlength'] = min($maxLength, 100000);
+            }
         }
 
         if (in_array($options['type'], ['datetime', 'date', 'time', 'select'])) {
@@ -1952,11 +1988,16 @@ class FormHelper extends Helper
         $url = '#';
         $onClick = 'document.' . $formName . '.submit();';
         if ($confirmMessage) {
-            $options['onclick'] = $this->_confirm($confirmMessage, $onClick, '', $options);
+            $confirm = $this->_confirm($confirmMessage, $onClick, '', $options);
         } else {
-            $options['onclick'] = $onClick . ' ';
+            $confirm = $onClick . ' ';
         }
-        $options['onclick'] .= 'event.returnValue = false; return false;';
+        $confirm .= 'event.returnValue = false; return false;';
+        $options['onclick'] = $this->templater()->format('confirmJs', [
+            'confirmMessage' => $this->_cleanConfirmMessage($confirmMessage),
+            'formName' => $formName,
+            'confirm' => $confirm
+        ]);
 
         $out .= $this->Html->link($title, $url, $options);
 
@@ -2021,7 +2062,7 @@ class FormHelper extends Helper
         if ($isUrl) {
             $options['src'] = $caption;
         } elseif ($isImage) {
-            if ($caption{0} !== '/') {
+            if ($caption[0] !== '/') {
                 $url = $this->Url->webroot(Configure::read('App.imageBaseUrl') . $caption);
             } else {
                 $url = $this->Url->webroot(trim($caption, '/'));
@@ -2629,7 +2670,7 @@ class FormHelper extends Helper
     protected function _initInputField($field, $options = [])
     {
         if (!isset($options['secure'])) {
-            $options['secure'] = (bool)$this->request->getParam('_Token');
+            $options['secure'] = (bool)$this->_View->getRequest()->getParam('_Token');
         }
         $context = $this->_getContext();
 
@@ -2805,7 +2846,8 @@ class FormHelper extends Helper
         }
         $data += ['entity' => null];
 
-        return $this->_context = $this->contextFactory()->get($this->request, $data);
+        return $this->_context = $this->contextFactory()
+            ->get($this->_View->getRequest(), $data);
     }
 
     /**
@@ -2880,7 +2922,7 @@ class FormHelper extends Helper
      *
      * Returns a list, but at least one item, of valid sources, such as: `'context'`, `'data'` and `'query'`.
      *
-     * @return array List of value sources.
+     * @return string[] List of value sources.
      */
     public function getValueSources()
     {
@@ -2893,7 +2935,7 @@ class FormHelper extends Helper
      * Valid values are `'context'`, `'data'` and `'query'`.
      * You need to supply one valid context or multiple, as a list of strings. Order sets priority.
      *
-     * @param string|array $sources A string or a list of strings identifying a source.
+     * @param string|string[] $sources A string or a list of strings identifying a source.
      * @return $this
      */
     public function setValueSources($sources)
@@ -2925,7 +2967,7 @@ class FormHelper extends Helper
             }
             if (isset($valueMap[$valuesSource])) {
                 $method = $valueMap[$valuesSource];
-                $value = $this->request->{$method}($fieldname);
+                $value = $this->_View->getRequest()->{$method}($fieldname);
                 if ($value !== null) {
                     return $value;
                 }

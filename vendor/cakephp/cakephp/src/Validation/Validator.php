@@ -38,6 +38,62 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     const NESTED = '_nested';
 
     /**
+     * A flag for allowEmptyFor()
+     *
+     * When an empty string is given, it will be recognized as empty.
+     *
+     * @var int
+     */
+    const EMPTY_STRING = 1;
+
+    /**
+     * A flag for allowEmptyFor()
+     *
+     * When an empty array is given, it will be recognized as empty.
+     *
+     * @var int
+     */
+    const EMPTY_ARRAY = 2;
+
+    /**
+     * A flag for allowEmptyFor()
+     *
+     * When an array is given, if it has at least the `name`, `type`, `tmp_name` and `error` keys,
+     * and the value of `error` is equal to `UPLOAD_ERR_NO_FILE`, the value will be recognized as
+     * empty.
+     *
+     * @var int
+     */
+    const EMPTY_FILE = 4;
+
+    /**
+     * A flag for allowEmptyFor()
+     *
+     * When an array is given, if it contains the `year` key, and only empty strings
+     * or null values, it will be recognized as empty.
+     *
+     * @var int
+     */
+    const EMPTY_DATE = 8;
+
+    /**
+     * A flag for allowEmptyFor()
+     *
+     * When an array is given, if it contains the `hour` key, and only empty strings
+     * or null values, it will be recognized as empty.
+     *
+     * @var int
+     */
+    const EMPTY_TIME = 16;
+
+    /**
+     * A combination of the all EMPTY_* flags
+     *
+     * @var int
+     */
+    const EMPTY_ALL = self::EMPTY_STRING | self::EMPTY_ARRAY | self::EMPTY_FILE | self::EMPTY_DATE | self::EMPTY_TIME;
+
+    /**
      * Holds the ValidationSet objects array
      *
      * @var array
@@ -83,6 +139,13 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     protected $_allowEmptyMessages = [];
 
     /**
+     * Contains the flags which specify what is empty for each corresponding field.
+     *
+     * @var array
+     */
+    protected $_allowEmptyFlags = [];
+
+    /**
      * Constructor
      *
      */
@@ -104,14 +167,6 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     {
         $errors = [];
 
-        $requiredMessage = 'This field is required';
-        $emptyMessage = 'This field cannot be left empty';
-
-        if ($this->_useI18n) {
-            $requiredMessage = __d('cake', 'This field is required');
-            $emptyMessage = __d('cake', 'This field cannot be left empty');
-        }
-
         foreach ($this->_fields as $name => $field) {
             $keyPresent = array_key_exists($name, $data);
 
@@ -119,9 +174,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
             $context = compact('data', 'newRecord', 'field', 'providers');
 
             if (!$keyPresent && !$this->_checkPresence($field, $context)) {
-                $errors[$name]['_required'] = isset($this->_presenceMessages[$name])
-                    ? $this->_presenceMessages[$name]
-                    : $requiredMessage;
+                $errors[$name]['_required'] = $this->getRequiredMessage($name);
                 continue;
             }
             if (!$keyPresent) {
@@ -129,12 +182,16 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
             }
 
             $canBeEmpty = $this->_canBeEmpty($field, $context);
-            $isEmpty = $this->_fieldIsEmpty($data[$name]);
+
+            $flags = static::EMPTY_ALL;
+            if (isset($this->_allowEmptyFlags[$name])) {
+                $flags = $this->_allowEmptyFlags[$name];
+            }
+
+            $isEmpty = $this->isEmpty($data[$name], $flags);
 
             if (!$canBeEmpty && $isEmpty) {
-                $errors[$name]['_empty'] = isset($this->_allowEmptyMessages[$name])
-                    ? $this->_allowEmptyMessages[$name]
-                    : $emptyMessage;
+                $errors[$name]['_empty'] = $this->getNotEmptyMessage($name);
                 continue;
             }
 
@@ -249,7 +306,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     /**
      * Get the list of default providers.
      *
-     * @return array
+     * @return string[]
      */
     public static function getDefaultProviders()
     {
@@ -286,7 +343,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     /**
      * Get the list of providers in this validator.
      *
-     * @return array
+     * @return string[]
      */
     public function providers()
     {
@@ -389,7 +446,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
      */
     public function add($field, $name, $rule = [])
     {
-        $field = $this->field($field);
+        $validationSet = $this->field($field);
 
         if (!is_array($name)) {
             $rules = [$name => $rule];
@@ -401,7 +458,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
             if (is_array($rule)) {
                 $rule += ['rule' => $name];
             }
-            $field->add($name, $rule);
+            $validationSet->add($name, $rule);
         }
 
         return $this;
@@ -431,8 +488,8 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     {
         $extra = array_filter(['message' => $message, 'on' => $when]);
 
-        $field = $this->field($field);
-        $field->add(static::NESTED, $extra + ['rule' => function ($value, $context) use ($validator, $message) {
+        $validationSet = $this->field($field);
+        $validationSet->add(static::NESTED, $extra + ['rule' => function ($value, $context) use ($validator, $message) {
             if (!is_array($value)) {
                 return false;
             }
@@ -473,8 +530,8 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     {
         $extra = array_filter(['message' => $message, 'on' => $when]);
 
-        $field = $this->field($field);
-        $field->add(static::NESTED, $extra + ['rule' => function ($value, $context) use ($validator, $message) {
+        $validationSet = $this->field($field);
+        $validationSet->add(static::NESTED, $extra + ['rule' => function ($value, $context) use ($validator, $message) {
             if (!is_array($value)) {
                 return false;
             }
@@ -627,6 +684,8 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
      * Because this and `notEmpty()` modify the same internal state, the last
      * method called will take precedence.
      *
+     * @deprecated 3.7.0 Use allowEmptyString(), allowEmptyArray(), allowEmptyFile(),
+     *   allowEmptyDate(), allowEmptyTime() or allowEmptyDateTime() instead.
      * @param string|array $field the name of the field or a list of fields
      * @param bool|string|callable $when Indicates when the field is allowed to be empty
      * Valid values are true (always), 'create', 'update'. If a callable is passed then
@@ -636,26 +695,413 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
      */
     public function allowEmpty($field, $when = true, $message = null)
     {
-        $settingsDefault = [
+        $defaults = [
             'when' => $when,
-            'message' => $message
+            'message' => $message,
         ];
-
         if (!is_array($field)) {
-            $field = $this->_convertValidatorToArray($field, $settingsDefault);
+            $field = $this->_convertValidatorToArray($field, $defaults);
         }
 
         foreach ($field as $fieldName => $setting) {
-            $settings = $this->_convertValidatorToArray($fieldName, $settingsDefault, $setting);
-            $fieldName = current(array_keys($settings));
-
-            $this->field($fieldName)->allowEmpty($settings[$fieldName]['when']);
-            if ($settings[$fieldName]['message']) {
-                $this->_allowEmptyMessages[$fieldName] = $settings[$fieldName]['message'];
-            }
+            $settings = $this->_convertValidatorToArray($fieldName, $defaults, $setting);
+            $fieldName = array_keys($settings)[0];
+            $this->allowEmptyFor($fieldName, null, $settings[$fieldName]['when'], $settings[$fieldName]['message']);
         }
 
         return $this;
+    }
+
+    /**
+     * Low-level method to indicate that a field can be empty.
+     *
+     * This method should generally not be used and instead you should
+     * use:
+     *
+     * - `allowEmptyString()`
+     * - `allowEmptyArray()`
+     * - `allowEmptyFile()`
+     * - `allowEmptyDate()`
+     * - `allowEmptyDatetime()`
+     * - `allowEmptyTime()`
+     *
+     * Should be used as their APIs are simpler to operate and read.
+     *
+     * You can also set flags, when and message for all passed fields, the individual
+     * setting takes precedence over group settings.
+     *
+     * ### Example:
+     *
+     * ```
+     * // Email can be empty
+     * $validator->allowEmptyFor('email', Validator::EMPTY_STRING);
+     *
+     * // Email can be empty on create
+     * $validator->allowEmptyFor('email', Validator::EMPTY_STRING, 'create');
+     *
+     * // Email can be empty on update
+     * $validator->allowEmptyFor('email', Validator::EMPTY_STRING, 'update');
+     * ```
+     *
+     * It is possible to conditionally allow emptiness on a field by passing a callback
+     * as a second argument. The callback will receive the validation context array as
+     * argument:
+     *
+     * ```
+     * $validator->allowEmpty('email', Validator::EMPTY_STRING, function ($context) {
+     *   return !$context['newRecord'] || $context['data']['role'] === 'admin';
+     * });
+     * ```
+     *
+     * If you want to allow other kind of empty data on a field, you need to pass other
+     * flags:
+     *
+     * ```
+     * $validator->allowEmptyFor('photo', Validator::EMPTY_FILE);
+     * $validator->allowEmptyFor('published', Validator::EMPTY_STRING | Validator::EMPTY_DATE | Validator::EMPTY_TIME);
+     * $validator->allowEmptyFor('items', Validator::EMPTY_STRING | Validator::EMPTY_ARRAY);
+     * ```
+     *
+     * You can also use convenience wrappers of this method. The following calls are the
+     * same as above:
+     *
+     * ```
+     * $validator->allowEmptyFile('photo');
+     * $validator->allowEmptyDateTime('published');
+     * $validator->allowEmptyArray('items');
+     * ```
+     *
+     * @param string $field The name of the field.
+     * @param int|null $flags A bitmask of EMPTY_* flags which specify what is empty
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     * Valid values are true, false, 'create', 'update'. If a callable is passed then
+     * the field will allowed to be empty only when the callback returns true.
+     * @param string|null $message The message to show if the field is not
+     * @since 3.7.0
+     * @return $this
+     */
+    public function allowEmptyFor($field, $flags, $when = true, $message = null)
+    {
+        $this->field($field)->allowEmpty($when);
+        if ($message) {
+            $this->_allowEmptyMessages[$field] = $message;
+        }
+        if ($flags !== null) {
+            $this->_allowEmptyFlags[$field] = $flags;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Compatibility shim for the allowEmpty* methods that enable
+     * us to support both the `$when, $message` signature (deprecated)
+     * and the `$message, $when` format which is preferred.
+     *
+     * A deprecation warning will be emitted when a deprecated form
+     * is used.
+     *
+     * @param mixed $first The message or when to be sorted.
+     * @param mixed $second The message or when to be sorted.
+     * @param string $method The called method
+     * @return array A list of [$message, $when]
+     */
+    protected function sortMessageAndWhen($first, $second, $method)
+    {
+        // Called with `$message, $when`. No order change necessary
+        if ((
+                in_array($second, [true, false, 'create', 'update'], true) ||
+                is_callable($second)
+            ) && (
+                is_string($first) || $first === null
+            ) && (
+                $first !== 'create' && $first !== 'update'
+            )
+        ) {
+            return [$first, $second];
+        }
+        deprecationWarning(
+            "You are using a deprecated argument order for ${method}. " .
+            "You should reverse the order of your `when` and `message` arguments " .
+            "so that they are `message, when`."
+        );
+
+        // Called without the second argument.
+        if (is_bool($second)) {
+            $second = null;
+        }
+
+        // Called with `$when, $message`. Reverse the
+        // order to match the expected return value.
+        return [$second, $first];
+    }
+
+    /**
+     * Allows a field to be an empty string.
+     *
+     * This method is equivalent to calling allowEmptyFor() with EMPTY_STRING flag.
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is not
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     * Valid values are true, false, 'create', 'update'. If a callable is passed then
+     * the field will allowed to be empty only when the callback returns true.
+     * @return $this
+     * @since 3.7.0
+     * @see \Cake\Validation\Validator::allowEmptyFor() For detail usage
+     */
+    public function allowEmptyString($field, $message = null, $when = true)
+    {
+        list($message, $when) = $this->sortMessageAndWhen($message, $when, __METHOD__);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING, $when, $message);
+    }
+
+    /**
+     * Requires a field to be not be an empty string.
+     *
+     * Opposite to allowEmptyString()
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is empty.
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are false (never), 'create', 'update'. If a
+     *   callable is passed then the field will be required to be not empty when
+     *   the callback returns true.
+     * @return $this
+     * @see \Cake\Validation\Validator::allowEmptyString()
+     * @since 3.8.0
+     */
+    public function notEmptyString($field, $message = null, $when = false)
+    {
+        $when = $this->invertWhenClause($when);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING, $when, $message);
+    }
+
+    /**
+     * Allows a field to be an empty array.
+     *
+     * This method is equivalent to calling allowEmptyFor() with EMPTY_STRING +
+     * EMPTY_ARRAY flags.
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is not
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     * Valid values are true, false, 'create', 'update'. If a callable is passed then
+     * the field will allowed to be empty only when the callback returns true.
+     * @return $this
+     * @since 3.7.0
+     * @see \Cake\Validation\Validator::allowEmptyFor() for examples.
+     */
+    public function allowEmptyArray($field, $message = null, $when = true)
+    {
+        list($message, $when) = $this->sortMessageAndWhen($message, $when, __METHOD__);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_ARRAY, $when, $message);
+    }
+
+    /**
+     * Require a field to be a non-empty array
+     *
+     * Opposite to allowEmptyArray()
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is empty.
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are false (never), 'create', 'update'. If a
+     *   callable is passed then the field will be required to be not empty when
+     *   the callback returns true.
+     * @return $this
+     * @see \Cake\Validation\Validator::allowEmptyArray()
+     * @since 3.8.0
+     */
+    public function notEmptyArray($field, $message = null, $when = false)
+    {
+        $when = $this->invertWhenClause($when);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_ARRAY, $when, $message);
+    }
+
+    /**
+     * Allows a field to be an empty file.
+     *
+     * This method is equivalent to calling allowEmptyFor() with EMPTY_FILE flag.
+     * File fields will not accept `''`, or `[]` as empty values. Only `null` and a file
+     * upload with `error` equal to `UPLOAD_ERR_NO_FILE` will be treated as empty.
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is not
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     *   Valid values are true, 'create', 'update'. If a callable is passed then
+     *   the field will allowed to be empty only when the callback returns true.
+     * @return $this
+     * @since 3.7.0
+     * @see \Cake\Validation\Validator::allowEmptyFor() For detail usage
+     */
+    public function allowEmptyFile($field, $message = null, $when = true)
+    {
+        list($message, $when) = $this->sortMessageAndWhen($message, $when, __METHOD__);
+
+        return $this->allowEmptyFor($field, self::EMPTY_FILE, $when, $message);
+    }
+
+    /**
+     * Require a field to be a not-empty file.
+     *
+     * Opposite to allowEmptyFile()
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is empty.
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are false (never), 'create', 'update'. If a
+     *   callable is passed then the field will be required to be not empty when
+     *   the callback returns true.
+     * @return $this
+     * @since 3.8.0
+     * @see \Cake\Validation\Validator::allowEmptyFile()
+     */
+    public function notEmptyFile($field, $message = null, $when = false)
+    {
+        $when = $this->invertWhenClause($when);
+
+        return $this->allowEmptyFor($field, self::EMPTY_FILE, $when, $message);
+    }
+
+    /**
+     * Allows a field to be an empty date.
+     *
+     * Empty date values are `null`, `''`, `[]` and arrays where all values are `''`
+     * and the `year` key is present.
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is not
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     * Valid values are true, false, 'create', 'update'. If a callable is passed then
+     * the field will allowed to be empty only when the callback returns true.
+     * @return $this
+     * @since 3.7.0
+     * @see \Cake\Validation\Validator::allowEmptyFor() for examples
+     */
+    public function allowEmptyDate($field, $message = null, $when = true)
+    {
+        list($message, $when) = $this->sortMessageAndWhen($message, $when, __METHOD__);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_DATE, $when, $message);
+    }
+
+    /**
+     * Require a non-empty date value
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is empty.
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are false (never), 'create', 'update'. If a
+     *   callable is passed then the field will be required to be not empty when
+     *   the callback returns true.
+     * @return $this
+     * @since 3.8.0
+     * @see \Cake\Validation\Validator::allowEmptyDate() for examples
+     */
+    public function notEmptyDate($field, $message = null, $when = false)
+    {
+        $when = $this->invertWhenClause($when);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_DATE, $when, $message);
+    }
+
+    /**
+     * Allows a field to be an empty time.
+     *
+     * Empty date values are `null`, `''`, `[]` and arrays where all values are `''`
+     * and the `hour` key is present.
+     *
+     * This method is equivalent to calling allowEmptyFor() with EMPTY_STRING +
+     * EMPTY_TIME flags.
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is not
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     * Valid values are true, false, 'create', 'update'. If a callable is passed then
+     * the field will allowed to be empty only when the callback returns true.
+     * @return $this
+     * @since 3.7.0
+     * @see \Cake\Validation\Validator::allowEmptyFor() for examples.
+     */
+    public function allowEmptyTime($field, $message = null, $when = true)
+    {
+        list($message, $when) = $this->sortMessageAndWhen($message, $when, __METHOD__);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_TIME, $when, $message);
+    }
+
+    /**
+     * Require a field to be a non-empty time.
+     *
+     * Opposite to allowEmptyTime()
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is empty.
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are false (never), 'create', 'update'. If a
+     *   callable is passed then the field will be required to be not empty when
+     *   the callback returns true.
+     * @return $this
+     * @since 3.8.0
+     * @see \Cake\Validation\Validator::allowEmptyTime()
+     */
+    public function notEmptyTime($field, $message = null, $when = false)
+    {
+        $when = $this->invertWhenClause($when);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_TIME, $when, $message);
+    }
+
+    /**
+     * Allows a field to be an empty date/time.
+     *
+     * Empty date values are `null`, `''`, `[]` and arrays where all values are `''`
+     * and the `year` and `hour` keys are present.
+     *
+     * This method is equivalent to calling allowEmptyFor() with EMPTY_STRING +
+     * EMPTY_DATE + EMPTY_TIME flags.
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is not
+     * @param bool|string|callable $when Indicates when the field is allowed to be empty
+     *   Valid values are true, false, 'create', 'update'. If a callable is passed then
+     *   the field will allowed to be empty only when the callback returns false.
+     * @return $this
+     * @since 3.7.0
+     * @see \Cake\Validation\Validator::allowEmptyFor() for examples.
+     */
+    public function allowEmptyDateTime($field, $message = null, $when = true)
+    {
+        list($message, $when) = $this->sortMessageAndWhen($message, $when, __METHOD__);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_DATE | self::EMPTY_TIME, $when, $message);
+    }
+
+    /**
+     * Require a field to be a non empty date/time.
+     *
+     * Opposite to allowEmptyDateTime
+     *
+     * @param string $field The name of the field.
+     * @param string|null $message The message to show if the field is empty.
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are false (never), 'create', 'update'. If a
+     *   callable is passed then the field will be required to be not empty when
+     *   the callback returns true.
+     * @return $this
+     * @since 3.8.0
+     * @see \Cake\Validation\Validator::allowEmptyDateTime()
+     */
+    public function notEmptyDateTime($field, $message = null, $when = false)
+    {
+        $when = $this->invertWhenClause($when);
+
+        return $this->allowEmptyFor($field, self::EMPTY_STRING | self::EMPTY_DATE | self::EMPTY_TIME, $when, $message);
     }
 
     /**
@@ -740,6 +1186,8 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
      * Because this and `allowEmpty()` modify the same internal state, the last
      * method called will take precedence.
      *
+     * @deprecated 3.7.0 Use notEmptyString(), notEmptyArray(), notEmptyFile(),
+     *   notEmptyDate(), notEmptyTime() or notEmptyDateTime() instead.
      * @param string|array $field the name of the field or list of fields
      * @param string|null $message The message to show if the field is not
      * @param bool|string|callable $when Indicates when the field is not allowed
@@ -762,15 +1210,8 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
         foreach ($field as $fieldName => $setting) {
             $settings = $this->_convertValidatorToArray($fieldName, $defaults, $setting);
             $fieldName = current(array_keys($settings));
-            $whenSetting = $settings[$fieldName]['when'];
 
-            if ($whenSetting === 'create' || $whenSetting === 'update') {
-                $whenSetting = $whenSetting === 'create' ? 'update' : 'create';
-            } elseif (is_callable($whenSetting)) {
-                $whenSetting = function ($context) use ($whenSetting) {
-                    return !$whenSetting($context);
-                };
-            }
+            $whenSetting = $this->invertWhenClause($settings[$fieldName]['when']);
 
             $this->field($fieldName)->allowEmpty($whenSetting);
             if ($settings[$fieldName]['message']) {
@@ -779,6 +1220,28 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
         }
 
         return $this;
+    }
+
+    /**
+     * Invert a when clause for creating notEmpty rules
+     *
+     * @param bool|string|callable $when Indicates when the field is not allowed
+     *   to be empty. Valid values are true (always), 'create', 'update'. If a
+     *   callable is passed then the field will allowed to be empty only when
+     *   the callback returns false.
+     * @return bool|string|callable
+     */
+    protected function invertWhenClause($when)
+    {
+        if ($when === 'create' || $when === 'update') {
+            return $when === 'create' ? 'update' : 'create';
+        } elseif (is_callable($when)) {
+            return function ($context) use ($when) {
+                return !$when($context);
+            };
+        }
+
+        return $when;
     }
 
     /**
@@ -851,7 +1314,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
      * @param string|null $message The error message when the rule fails.
      * @param string|callable|null $when Either 'create' or 'update' or a callable that returns
      *   true when the validation rule should be applied.
-     * @see \Cake\Validation\Validation::cc()
+     * @see \Cake\Validation\Validation::creditCard()
      * @return $this
      */
     public function creditCard($field, $type = 'all', $message = null, $when = null)
@@ -859,7 +1322,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
         $extra = array_filter(['on' => $when, 'message' => $message]);
 
         return $this->add($field, 'creditCard', $extra + [
-            'rule' => ['cc', $type, true],
+            'rule' => ['creditCard', $type, true],
         ]);
     }
 
@@ -1957,6 +2420,57 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     }
 
     /**
+     * Gets the required message for a field
+     *
+     * @param string $field Field name
+     * @return string|null
+     */
+    public function getRequiredMessage($field)
+    {
+        if (!isset($this->_fields[$field])) {
+            return null;
+        }
+
+        $defaultMessage = 'This field is required';
+        if ($this->_useI18n) {
+            $defaultMessage = __d('cake', 'This field is required');
+        }
+
+        return isset($this->_presenceMessages[$field])
+            ? $this->_presenceMessages[$field]
+            : $defaultMessage;
+    }
+
+    /**
+     * Gets the notEmpty message for a field
+     *
+     * @param string $field Field name
+     * @return string|null
+     */
+    public function getNotEmptyMessage($field)
+    {
+        if (!isset($this->_fields[$field])) {
+            return null;
+        }
+
+        $defaultMessage = 'This field cannot be left empty';
+        if ($this->_useI18n) {
+            $defaultMessage = __d('cake', 'This field cannot be left empty');
+        }
+
+        $notBlankMessage = null;
+        foreach ($this->_fields[$field] as $rule) {
+            if ($rule->get('rule') === 'notBlank' && $rule->get('message')) {
+                return $rule->get('message');
+            }
+        }
+
+        return isset($this->_allowEmptyMessages[$field])
+            ? $this->_allowEmptyMessages[$field]
+            : $defaultMessage;
+    }
+
+    /**
      * Returns false if any validation for the passed rule set should be stopped
      * due to the field missing in the data array
      *
@@ -2012,22 +2526,62 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
     /**
      * Returns true if the field is empty in the passed data array
      *
-     * @param mixed $data value to check against
+     * @param mixed $data Value to check against.
      * @return bool
+     * @deprecated 3.7.0 Use isEmpty() instead
      */
     protected function _fieldIsEmpty($data)
     {
-        if (empty($data) && !is_bool($data) && !is_numeric($data)) {
+        return $this->isEmpty($data, static::EMPTY_ALL);
+    }
+
+    /**
+     * Returns true if the field is empty in the passed data array
+     *
+     * @param mixed $data Value to check against.
+     * @param int $flags A bitmask of EMPTY_* flags which specify what is empty
+     * @return bool
+     */
+    protected function isEmpty($data, $flags)
+    {
+        if ($data === null) {
             return true;
         }
-        $isArray = is_array($data);
-        if ($isArray && (isset($data['year']) || isset($data['hour']))) {
-            $value = implode('', $data);
 
-            return strlen($value) === 0;
+        if ($data === '' && ($flags & self::EMPTY_STRING)) {
+            return true;
         }
-        if ($isArray && isset($data['name'], $data['type'], $data['tmp_name'], $data['error'])) {
-            return (int)$data['error'] === UPLOAD_ERR_NO_FILE;
+
+        $arrayTypes = self::EMPTY_ARRAY | self::EMPTY_DATE | self::EMPTY_TIME;
+        if ($data === [] && ($flags & $arrayTypes)) {
+            return true;
+        }
+
+        if (is_array($data)) {
+            if (($flags & self::EMPTY_FILE)
+                && isset($data['name'], $data['type'], $data['tmp_name'], $data['error'])
+                && (int)$data['error'] === UPLOAD_ERR_NO_FILE
+            ) {
+                return true;
+            }
+
+            $allFieldsAreEmpty = true;
+            foreach ($data as $field) {
+                if ($field !== null && $field !== '') {
+                    $allFieldsAreEmpty = false;
+                    break;
+                }
+            }
+
+            if ($allFieldsAreEmpty) {
+                if (($flags & self::EMPTY_DATE) && isset($data['year'])) {
+                    return true;
+                }
+
+                if (($flags & self::EMPTY_TIME) && isset($data['hour'])) {
+                    return true;
+                }
+            }
         }
 
         return false;
@@ -2095,6 +2649,7 @@ class Validator implements ArrayAccess, IteratorAggregate, Countable
         return [
             '_presenceMessages' => $this->_presenceMessages,
             '_allowEmptyMessages' => $this->_allowEmptyMessages,
+            '_allowEmptyFlags' => $this->_allowEmptyFlags,
             '_useI18n' => $this->_useI18n,
             '_providers' => array_keys($this->_providers),
             '_fields' => $fields

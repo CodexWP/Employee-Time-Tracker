@@ -253,8 +253,13 @@ class Hash
                 return false;
             }
 
+            if (is_array($data)) {
+                $attrPresent = array_key_exists($attr, $data);
+            } else {
+                $attrPresent = $data->offsetExists($attr);
+            }
             // Empty attribute = fail.
-            if (!(isset($data[$attr]) || array_key_exists($attr, $data))) {
+            if (!$attrPresent) {
                 return false;
             }
 
@@ -997,9 +1002,9 @@ class Hash
         $type = strtolower($type);
 
         if ($dir === 'asc') {
-            $dir = SORT_ASC;
+            $dir = \SORT_ASC;
         } else {
-            $dir = SORT_DESC;
+            $dir = \SORT_DESC;
         }
         if ($type === 'numeric') {
             $type = \SORT_NUMERIC;

@@ -23,9 +23,16 @@ class Text
 {
 
     /**
+     * Default transliterator.
+     *
+     * @var \Transliterator Transliterator instance.
+     */
+    protected static $_defaultTransliterator;
+
+    /**
      * Default transliterator id string.
      *
-     * @param string $_defaultTransliteratorId Transliterator identifier string.
+     * @var string $_defaultTransliteratorId Transliterator identifier string.
      */
     protected static $_defaultTransliteratorId = 'Any-Latin; Latin-ASCII; [\u0080-\u7fff] remove';
 
@@ -84,7 +91,7 @@ class Text
      * @param string $separator The token to split the data on.
      * @param string $leftBound The left boundary to ignore separators in.
      * @param string $rightBound The right boundary to ignore separators in.
-     * @return array|string Array of tokens in $data or original input if empty.
+     * @return string|string[] Array of tokens in $data or original input if empty.
      */
     public static function tokenize($data, $separator = ',', $leftBound = '(', $rightBound = ')')
     {
@@ -492,7 +499,13 @@ class Text
             'limit' => -1,
         ];
         $options += $defaults;
-        $html = $format = $ellipsis = $exact = $limit = null;
+
+        $html = $format = $limit = null;
+        /**
+         * @var bool $html
+         * @var string|array $format
+         * @var int $limit
+         */
         extract($options);
 
         if (is_array($phrase)) {
@@ -548,7 +561,7 @@ class Text
      *
      * ### Options:
      *
-     * - `ellipsis` Will be used as Beginning and prepended to the trimmed string
+     * - `ellipsis` Will be used as beginning and prepended to the trimmed string
      * - `exact` If false, $text will not be cut mid-word
      *
      * @param string $text String to truncate.
@@ -563,6 +576,10 @@ class Text
         ];
         $options += $default;
         $exact = $ellipsis = null;
+        /**
+         * @var string $ellipsis
+         * @var bool $exact
+         */
         extract($options);
 
         if (mb_strlen($text) <= $length) {
@@ -630,7 +647,7 @@ class Text
                         if (preg_match('/<[\w]+[^>]*>/', $tag[0])) {
                             array_unshift($openTags, $tag[2]);
                         } elseif (preg_match('/<\/([\w]+)[^>]*>/', $tag[0], $closeTag)) {
-                            $pos = array_search($closeTag[1], $openTags);
+                            $pos = array_search($closeTag[1], $openTags, true);
                             if ($pos !== false) {
                                 array_splice($openTags, $pos, 1);
                             }
@@ -905,7 +922,7 @@ class Text
     /**
      * Creates a comma separated list where the last two items are joined with 'and', forming natural language.
      *
-     * @param array $list The list to be joined.
+     * @param string[] $list The list to be joined.
      * @param string|null $and The word used to join the last and second last items together with. Defaults to 'and'.
      * @param string $separator The separator used to join all the other items together. Defaults to ', '.
      * @return string The glued together string.
@@ -1028,10 +1045,10 @@ class Text
         $size = strtoupper($size);
 
         $l = -2;
-        $i = array_search(substr($size, -2), ['KB', 'MB', 'GB', 'TB', 'PB']);
+        $i = array_search(substr($size, -2), ['KB', 'MB', 'GB', 'TB', 'PB'], true);
         if ($i === false) {
             $l = -1;
-            $i = array_search(substr($size, -1), ['K', 'M', 'G', 'T', 'P']);
+            $i = array_search(substr($size, -1), ['K', 'M', 'G', 'T', 'P'], true);
         }
         if ($i !== false) {
             $size = (float)substr($size, 0, $l);
@@ -1052,6 +1069,30 @@ class Text
     }
 
     /**
+     * Get the default transliterator.
+     *
+     * @return \Transliterator|null Either a Transliterator instance, or `null`
+     *   in case no transliterator has been set yet.
+     * @since 3.7.0
+     */
+    public static function getTransliterator()
+    {
+        return static::$_defaultTransliterator;
+    }
+
+    /**
+     * Set the default transliterator.
+     *
+     * @param \Transliterator $transliterator A `Transliterator` instance.
+     * @return void
+     * @since 3.7.0
+     */
+    public static function setTransliterator(\Transliterator $transliterator)
+    {
+        static::$_defaultTransliterator = $transliterator;
+    }
+
+    /**
      * Get default transliterator identifier string.
      *
      * @return string Transliterator identifier.
@@ -1069,6 +1110,7 @@ class Text
      */
     public static function setTransliteratorId($transliteratorId)
     {
+        static::setTransliterator(transliterator_create($transliteratorId));
         static::$_defaultTransliteratorId = $transliteratorId;
     }
 
@@ -1076,16 +1118,20 @@ class Text
      * Transliterate string.
      *
      * @param string $string String to transliterate.
-     * @param string|null $transliteratorId Transliterator identifier. If null
-     *   Text::$_defaultTransliteratorId will be used.
+     * @param \Transliterator|string|null $transliterator Either a Transliterator
+     *   instance, or a transliterator identifier string. If `null`, the default
+     *   transliterator (identifier) set via `setTransliteratorId()` or
+     *   `setTransliterator()` will be used.
      * @return string
      * @see https://secure.php.net/manual/en/transliterator.transliterate.php
      */
-    public static function transliterate($string, $transliteratorId = null)
+    public static function transliterate($string, $transliterator = null)
     {
-        $transliteratorId = $transliteratorId ?: static::$_defaultTransliteratorId;
+        if (!$transliterator) {
+            $transliterator = static::$_defaultTransliterator ?: static::$_defaultTransliteratorId;
+        }
 
-        return transliterator_transliterate($transliteratorId, $string);
+        return transliterator_transliterate($transliterator, $string);
     }
 
     /**
@@ -1095,8 +1141,9 @@ class Text
      * ### Options:
      *
      * - `replacement`: Replacement string. Default '-'.
-     * - `transliteratorId`: A valid tranliterator id string.
-     *   If default `null` Text::$_defaultTransliteratorId to be used.
+     * - `transliteratorId`: A valid transliterator id string.
+     *   If `null` (default) the transliterator (identifier) set via
+     *   `setTransliteratorId()` or `setTransliterator()` will be used.
      *   If `false` no transliteration will be done, only non words will be removed.
      * - `preserve`: Specific non-word character to preserve. Default `null`.
      *   For e.g. this option can be set to '.' to generate clean file names.
@@ -1105,6 +1152,8 @@ class Text
      * @param array $options If string it will be use as replacement character
      *   or an array of options.
      * @return string
+     * @see setTransliterator()
+     * @see setTransliteratorId()
      */
     public static function slug($string, $options = [])
     {

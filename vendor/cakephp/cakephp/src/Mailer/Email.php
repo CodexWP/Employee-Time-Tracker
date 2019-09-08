@@ -15,7 +15,6 @@
 namespace Cake\Mailer;
 
 use BadMethodCallException;
-use Cake\Core\App;
 use Cake\Core\Configure;
 use Cake\Core\StaticConfigTrait;
 use Cake\Filesystem\File;
@@ -293,22 +292,13 @@ class Email implements JsonSerializable, Serializable
     protected $_priority;
 
     /**
-     * An array mapping url schemes to fully qualified Transport class names
+     * An array mapping url schemes to fully qualified Transport class names.
+     * Unused.
      *
      * @var array
+     * @deprecated 3.7.0 This property is unused and will be removed in 4.0.0.
      */
-    protected static $_dsnClassMap = [
-        'debug' => 'Cake\Mailer\Transport\DebugTransport',
-        'mail' => 'Cake\Mailer\Transport\MailTransport',
-        'smtp' => 'Cake\Mailer\Transport\SmtpTransport',
-    ];
-
-    /**
-     * Configuration profiles for transports.
-     *
-     * @var array
-     */
-    protected static $_transportConfig = [];
+    protected static $_dsnClassMap = [];
 
     /**
      * A copy of the configuration profile for this
@@ -1136,7 +1126,7 @@ class Email implements JsonSerializable, Serializable
      */
     public function addHeaders(array $headers)
     {
-        $this->_headers = array_merge($this->_headers, $headers);
+        $this->_headers = Hash::merge($this->_headers, $headers);
 
         return $this;
     }
@@ -1270,6 +1260,10 @@ class Email implements JsonSerializable, Serializable
      */
     public function setTemplate($template)
     {
+        deprecationWarning(
+            'Email::setTemplate() is deprecated. Use $email->viewBuilder()->setTemplate() instead.'
+        );
+
         $this->viewBuilder()->setTemplate($template ?: '');
 
         return $this;
@@ -1282,6 +1276,10 @@ class Email implements JsonSerializable, Serializable
      */
     public function getTemplate()
     {
+        deprecationWarning(
+            'Email::getTemplate() is deprecated. Use $email->viewBuilder()->getTemplate() instead.'
+        );
+
         return $this->viewBuilder()->getTemplate();
     }
 
@@ -1290,9 +1288,14 @@ class Email implements JsonSerializable, Serializable
      *
      * @param string|null $layout Layout name or null to not use
      * @return $this
+     * @deprecated 3.7.0 Use $email->viewBuilder()->setLayout() instead.
      */
     public function setLayout($layout)
     {
+        deprecationWarning(
+            'Email::setLayout() is deprecated. Use $email->viewBuilder()->setLayout() instead.'
+        );
+
         $this->viewBuilder()->setLayout($layout ?: false);
 
         return $this;
@@ -1301,10 +1304,15 @@ class Email implements JsonSerializable, Serializable
     /**
      * Gets layout.
      *
+     * @deprecated 3.7.0 Use $email->viewBuilder()->getLayout() instead.
      * @return string
      */
     public function getLayout()
     {
+        deprecationWarning(
+            'Email::getLayout() is deprecated. Use $email->viewBuilder()->getLayout() instead.'
+        );
+
         return $this->viewBuilder()->getLayout();
     }
 
@@ -1318,7 +1326,11 @@ class Email implements JsonSerializable, Serializable
      */
     public function template($template = false, $layout = false)
     {
-        deprecationWarning('Email::template() is deprecated. Use Email::setTemplate() or Email::getTemplate() and Email::setLayout() or Email::getLayout() instead.');
+        deprecationWarning(
+            'Email::template() is deprecated. ' .
+            'Use $email->viewBuilder()->getTemplate()/setTemplate() ' .
+            'and $email->viewBuilder()->getLayout()/setLayout() instead.'
+        );
 
         if ($template === false) {
             return [
@@ -1422,9 +1434,14 @@ class Email implements JsonSerializable, Serializable
      *
      * @param string $theme Theme name.
      * @return $this
+     * @deprecated 3.7.0 Use $email->viewBuilder()->setTheme() instead.
      */
     public function setTheme($theme)
     {
+        deprecationWarning(
+            'Email::setTheme() is deprecated. Use $email->viewBuilder()->setTheme() instead.'
+        );
+
         $this->viewBuilder()->setTheme($theme);
 
         return $this;
@@ -1434,9 +1451,14 @@ class Email implements JsonSerializable, Serializable
      * Gets theme to use when rendering.
      *
      * @return string
+     * @deprecated 3.7.0 Use $email->viewBuilder()->getTheme() instead.
      */
     public function getTheme()
     {
+        deprecationWarning(
+            'Email::getTheme() is deprecated. Use $email->viewBuilder()->getTheme() instead.'
+        );
+
         return $this->viewBuilder()->getTheme();
     }
 
@@ -1449,7 +1471,9 @@ class Email implements JsonSerializable, Serializable
      */
     public function theme($theme = null)
     {
-        deprecationWarning('Email::theme() is deprecated. Use Email::setTheme() or Email::getTheme() instead.');
+        deprecationWarning(
+            'Email::theme() is deprecated. Use $email->viewBuilder()->getTheme()/setTheme() instead.'
+        );
 
         if ($theme === null) {
             return $this->getTheme();
@@ -1463,9 +1487,14 @@ class Email implements JsonSerializable, Serializable
      *
      * @param array $helpers Helpers list.
      * @return $this
+     * @deprecated 3.7.0 Use $email->viewBuilder()->setHelpers() instead.
      */
     public function setHelpers(array $helpers)
     {
+        deprecationWarning(
+            'Email::setHelpers() is deprecated. Use $email->viewBuilder()->setHelpers() instead.'
+        );
+
         $this->viewBuilder()->setHelpers($helpers, false);
 
         return $this;
@@ -1475,9 +1504,14 @@ class Email implements JsonSerializable, Serializable
      * Gets helpers to be used when rendering.
      *
      * @return array
+     * @deprecated 3.7.0 Use $email->viewBuilder()->getHelpers() instead.
      */
     public function getHelpers()
     {
+        deprecationWarning(
+            'Email::getHelpers() is deprecated. Use $email->viewBuilder()->getHelpers() instead.'
+        );
+
         return $this->viewBuilder()->getHelpers();
     }
 
@@ -1490,7 +1524,9 @@ class Email implements JsonSerializable, Serializable
      */
     public function helpers($helpers = null)
     {
-        deprecationWarning('Email::helpers() is deprecated. Use Email::setHelpers() or Email::getHelpers() instead.');
+        deprecationWarning(
+            'Email::helpers() is deprecated. Use $email->viewBuilder()->getHelpers()/setHelpers() instead.'
+        );
 
         if ($helpers === null) {
             return $this->getHelpers();
@@ -1560,7 +1596,7 @@ class Email implements JsonSerializable, Serializable
     public function setTransport($name)
     {
         if (is_string($name)) {
-            $transport = $this->_constructTransport($name);
+            $transport = TransportFactory::get($name);
         } elseif (is_object($name)) {
             $transport = $name;
         } else {
@@ -1609,61 +1645,6 @@ class Email implements JsonSerializable, Serializable
         }
 
         return $this->setTransport($name);
-    }
-
-    /**
-     * Build a transport instance from configuration data.
-     *
-     * @param string $name The transport configuration name to build.
-     * @return \Cake\Mailer\AbstractTransport
-     * @throws \InvalidArgumentException When transport configuration is missing or invalid.
-     */
-    protected function _constructTransport($name)
-    {
-        if (!isset(static::$_transportConfig[$name])) {
-            throw new InvalidArgumentException(sprintf('Transport config "%s" is missing.', $name));
-        }
-
-        if (!isset(static::$_transportConfig[$name]['className'])) {
-            throw new InvalidArgumentException(
-                sprintf('Transport config "%s" is invalid, the required `className` option is missing', $name)
-            );
-        }
-
-        $config = static::$_transportConfig[$name];
-
-        if (is_object($config['className'])) {
-            if (!$config['className'] instanceof AbstractTransport) {
-                throw new InvalidArgumentException(sprintf(
-                    'Transport object must be of type "AbstractTransport". Found invalid type: "%s".',
-                    get_class($config['className'])
-                ));
-            }
-
-            return $config['className'];
-        }
-
-        $className = App::className($config['className'], 'Mailer/Transport', 'Transport');
-        if (!$className) {
-            $className = App::className($config['className'], 'Network/Email', 'Transport');
-            if ($className) {
-                trigger_error(
-                    'Transports in "Network/Email" are deprecated, use "Mailer/Transport" instead.',
-                    E_USER_DEPRECATED
-                );
-            }
-        }
-
-        if (!$className) {
-            throw new InvalidArgumentException(sprintf('Transport class "%s" not found.', $config['className']));
-        }
-        if (!method_exists($className, 'send')) {
-            throw new InvalidArgumentException(sprintf('The "%s" does not have a send() method.', $className));
-        }
-
-        unset($config['className']);
-
-        return new $className($config);
     }
 
     /**
@@ -1994,33 +1975,13 @@ class Email implements JsonSerializable, Serializable
      * @param array|\Cake\Mailer\AbstractTransport|null $config Either an array of configuration
      *   data, or a transport instance. Null when using key as array.
      * @return void
-     * @throws \BadMethodCallException When modifying an existing configuration.
+     * @deprecated 3.7.0 Use TransportFactory::setConfig() instead.
      */
     public static function setConfigTransport($key, $config = null)
     {
-        if (is_array($key)) {
-            foreach ($key as $name => $settings) {
-                static::setConfigTransport($name, $settings);
-            }
+        deprecationWarning('Email::setConfigTransport() is deprecated. Use TransportFactory::setConfig() instead.');
 
-            return;
-        }
-
-        if (isset(static::$_transportConfig[$key])) {
-            throw new BadMethodCallException(sprintf('Cannot modify an existing config "%s"', $key));
-        }
-
-        if (is_object($config)) {
-            $config = ['className' => $config];
-        }
-
-        if (isset($config['url'])) {
-            $parsed = static::parseDsn($config['url']);
-            unset($config['url']);
-            $config = $parsed + $config;
-        }
-
-        static::$_transportConfig[$key] = $config;
+        TransportFactory::setConfig($key, $config);
     }
 
     /**
@@ -2028,10 +1989,13 @@ class Email implements JsonSerializable, Serializable
      *
      * @param string $key The configuration name to read.
      * @return array|null Transport config.
+     * @deprecated 3.7.0 Use TransportFactory::getConfig() instead.
      */
     public static function getConfigTransport($key)
     {
-        return isset(static::$_transportConfig[$key]) ? static::$_transportConfig[$key] : null;
+        deprecationWarning('Email::getConfigTransport() is deprecated. Use TransportFactory::getConfig() instead.');
+
+        return TransportFactory::getConfig($key);
     }
 
     /**
@@ -2048,7 +2012,7 @@ class Email implements JsonSerializable, Serializable
      * The `className` is used to define the class to use for a transport.
      * It can either be a short name, or a fully qualified classname
      *
-     * @deprecated 3.4.0 Use setConfigTransport()/getConfigTransport() instead.
+     * @deprecated 3.4.0 Use TransportFactory::setConfig()/getConfig() instead.
      * @param string|array $key The configuration name to read/write. Or
      *   an array of multiple transports to set.
      * @param array|\Cake\Mailer\AbstractTransport|null $config Either an array of configuration
@@ -2058,28 +2022,31 @@ class Email implements JsonSerializable, Serializable
      */
     public static function configTransport($key, $config = null)
     {
-        deprecationWarning('Email::configTransport() is deprecated. Use Email::setConfigTransport() or Email::getConfigTransport() instead.');
+        deprecationWarning('Email::configTransport() is deprecated. Use TransportFactory::setConfig() or TransportFactory::getConfig() instead.');
 
         if ($config === null && is_string($key)) {
-            return static::getConfigTransport($key);
+            return TransportFactory::getConfig($key);
         }
         if ($config === null && is_array($key)) {
-            static::setConfigTransport($key);
+            TransportFactory::setConfig($key);
 
             return null;
         }
 
-        static::setConfigTransport($key, $config);
+        TransportFactory::setConfig($key, $config);
     }
 
     /**
      * Returns an array containing the named transport configurations
      *
      * @return array Array of configurations.
+     * @deprecated 3.7.0 Use TransportFactory::configured() instead.
      */
     public static function configuredTransport()
     {
-        return array_keys(static::$_transportConfig);
+        deprecationWarning('Email::configuredTransport() is deprecated. Use TransportFactory::configured().');
+
+        return TransportFactory::configured();
     }
 
     /**
@@ -2087,10 +2054,13 @@ class Email implements JsonSerializable, Serializable
      *
      * @param string $key The transport name to remove.
      * @return void
+     * @deprecated 3.7.0 Use TransportFactory::drop() instead.
      */
     public static function dropTransport($key)
     {
-        unset(static::$_transportConfig[$key]);
+        deprecationWarning('Email::dropTransport() is deprecated. Use TransportFactory::drop().');
+
+        TransportFactory::drop($key);
     }
 
     /**
@@ -2739,9 +2709,9 @@ class Email implements JsonSerializable, Serializable
         list($templatePlugin) = pluginSplit($View->getTemplate());
         list($layoutPlugin) = pluginSplit($View->getLayout());
         if ($templatePlugin) {
-            $View->plugin = $templatePlugin;
+            $View->setPlugin($templatePlugin);
         } elseif ($layoutPlugin) {
-            $View->plugin = $layoutPlugin;
+            $View->setPlugin($layoutPlugin);
         }
 
         if ($View->get('content') === null) {

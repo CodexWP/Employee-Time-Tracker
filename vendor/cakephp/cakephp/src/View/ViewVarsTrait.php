@@ -35,7 +35,11 @@ trait ViewVarsTrait
     public $viewClass;
 
     /**
-     * Variables for the view
+     * Variables for the view.
+     *
+     * Deprecated: This property will be removed in 4.x.
+     * Inside controller context use `$this->set()` instead, also see `$this->viewBuilder()->getVar()`.
+     * In view context it will be a protected property `View::$viewVars`.
      *
      * @var array
      */
@@ -80,7 +84,7 @@ trait ViewVarsTrait
             $builder->setClassName($viewClass);
         }
 
-        $validViewOptions = $this->viewOptions();
+        $validViewOptions = isset($this->_validViewOptions) ? $this->_validViewOptions : [];
         $viewOptions = [];
         foreach ($validViewOptions as $option) {
             if (property_exists($this, $option)) {
@@ -157,9 +161,14 @@ trait ViewVarsTrait
      * @param bool $merge Whether to merge with or override existing valid View options.
      *   Defaults to `true`.
      * @return array The updated view options as an array.
+     * @deprecated 3.7.0 Use ViewBuilder::setOptions() or any one of it's setter methods instead.
      */
     public function viewOptions($options = null, $merge = true)
     {
+        deprecationWarning(
+            'ViewVarsTrait::viewOptions() is deprecated, used ViewBuilder::setOptions() instead.'
+        );
+
         if (!isset($this->_validViewOptions)) {
             $this->_validViewOptions = [];
         }

@@ -22,6 +22,8 @@ The following options are available with every command:
 * **--quiet (-q):** Do not output any message.
 * **--no-interaction (-n):** Do not ask any interactive question.
 * **--no-plugins:** Disables plugins.
+* **--no-cache:** Disables the use of the cache directory. Same as setting the COMPOSER_CACHE_DIR
+  env var to /dev/null (or NUL on Windows).
 * **--working-dir (-d):** If specified, use the given directory as working directory.
 * **--profile:** Display timing and memory usage information
 * **--ansi:** Force ANSI output.
@@ -138,7 +140,7 @@ php composer.phar update vendor/package vendor/package2
 You can also use wildcards to update a bunch of packages at once:
 
 ```sh
-php composer.phar update vendor/*
+php composer.phar update "vendor/*"
 ```
 
 ### Options
@@ -256,6 +258,10 @@ The check-platform-reqs command checks that your PHP and extensions versions
 match the platform requirements of the installed packages. This can be used
 to verify that a production server has all the extensions needed to run a
 project after installing it for example.
+
+Unlike update/install, this command will ignore config.platform settings and
+check the real platform packages so you can be certain you have the required
+platform dependencies.
 
 ## global
 
@@ -491,7 +497,7 @@ php composer.phar validate
 
 ### Options
 
-* **--no-check-all:** Do not emit a warning if requirements in `composer.json` use unbound version constraints.
+* **--no-check-all:** Do not emit a warning if requirements in `composer.json` use unbound or overly strict version constraints.
 * **--no-check-lock:** Do not emit an error if `composer.lock` exists and is not up to date.
 * **--no-check-publish:** Do not emit an error if `composer.json` is unsuitable for publishing as a package on Packagist but is otherwise valid.
 * **--with-dependencies:** Also validate the composer.json of all installed dependencies.
@@ -796,6 +802,90 @@ COMPOSER=composer-other.json php composer.phar install
 
 The generated lock file will use the same name: `composer-other.lock` in this example.
 
+### COMPOSER_ALLOW_SUPERUSER
+
+If set to 1, this env disables the warning about running commands as root/super user.
+It also disables automatic clearing of sudo sessions, so you should really only set this
+if you use Composer as super user at all times like in docker containers.
+
+### COMPOSER_AUTH
+
+The `COMPOSER_AUTH` var allows you to set up authentication as an environment variable.
+The contents of the variable should be a JSON formatted object containing http-basic,
+github-oauth, bitbucket-oauth, ... objects as needed, and following the
+[spec from the config](06-config.md#gitlab-oauth).
+
+### COMPOSER_BIN_DIR
+
+By setting this option you can change the `bin` ([Vendor Binaries](articles/vendor-binaries.md))
+directory to something other than `vendor/bin`.
+
+### COMPOSER_CACHE_DIR
+
+The `COMPOSER_CACHE_DIR` var allows you to change the Composer cache directory,
+which is also configurable via the [`cache-dir`](06-config.md#cache-dir) option.
+
+By default it points to `$COMPOSER_HOME/cache` on \*nix and macOS, and
+`C:\Users\<user>\AppData\Local\Composer` (or `%LOCALAPPDATA%/Composer`) on Windows.
+
+### COMPOSER_CAFILE
+
+By setting this environmental value, you can set a path to a certificate bundle
+file to be used during SSL/TLS peer verification.
+
+### COMPOSER_DISCARD_CHANGES
+
+This env var controls the [`discard-changes`](06-config.md#discard-changes) config option.
+
+### COMPOSER_HOME
+
+The `COMPOSER_HOME` var allows you to change the Composer home directory. This
+is a hidden, global (per-user on the machine) directory that is shared between
+all projects.
+
+By default it points to `C:\Users\<user>\AppData\Roaming\Composer` on Windows
+and `/Users/<user>/.composer` on macOS. On \*nix systems that follow the [XDG Base
+Directory Specifications](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html),
+it points to `$XDG_CONFIG_HOME/composer`. On other \*nix systems, it points to
+`/home/<user>/.composer`.
+
+#### COMPOSER_HOME/config.json
+
+You may put a `config.json` file into the location which `COMPOSER_HOME` points
+to. Composer will merge this configuration with your project's `composer.json`
+when you run the `install` and `update` commands.
+
+This file allows you to set [repositories](05-repositories.md) and
+[configuration](06-config.md) for the user's projects.
+
+In case global configuration matches _local_ configuration, the _local_
+configuration in the project's `composer.json` always wins.
+
+### COMPOSER_HTACCESS_PROTECT
+
+Defaults to `1`. If set to `0`, Composer will not create `.htaccess` files in the
+composer home, cache, and data directories.
+
+### COMPOSER_MEMORY_LIMIT
+
+If set, the value is used as php's memory_limit.
+
+### COMPOSER_MIRROR_PATH_REPOS
+
+If set to 1, this env changes the default path repository strategy to `mirror` instead
+of `symlink`. As it is the default strategy being set it can still be overwritten by
+repository options.
+
+### COMPOSER_NO_INTERACTION
+
+If set to 1, this env var will make Composer behave as if you passed the
+`--no-interaction` flag to every command. This can be set on build boxes/CI.
+
+### COMPOSER_PROCESS_TIMEOUT
+
+This env var controls the time Composer waits for commands (such as git
+commands) to finish executing. The default value is 300 seconds (5 minutes).
+
 ### COMPOSER_ROOT_VERSION
 
 By setting this var you can specify the version of the root package, if it can
@@ -805,11 +895,6 @@ not be guessed from VCS info and is not present in `composer.json`.
 
 By setting this var you can make Composer install the dependencies into a
 directory other than `vendor`.
-
-### COMPOSER_BIN_DIR
-
-By setting this option you can change the `bin` ([Vendor Binaries](articles/vendor-binaries.md))
-directory to something other than `vendor/bin`.
 
 ### http_proxy or HTTP_PROXY
 
@@ -827,16 +912,6 @@ similar use case), and need to support proxies, please provide the `CGI_HTTP_PRO
 environment variable instead. See [httpoxy.org](https://httpoxy.org/) for further
 details.
 
-### no_proxy or NO_PROXY
-
-If you are behind a proxy and would like to disable it for certain domains, you
-can use the `no_proxy` or `NO_PROXY` env var. Simply set it to a comma separated list of
-domains the proxy should *not* be used for.
-
-The env var accepts domains, IP addresses, and IP address blocks in CIDR
-notation. You can restrict the filter to a particular port (e.g. `:80`). You
-can also set it to `*` to ignore the proxy for all HTTP requests.
-
 ### HTTP_PROXY_REQUEST_FULLURI
 
 If you use a proxy but it does not support the request_fulluri flag, then you
@@ -849,83 +924,18 @@ If you use a proxy but it does not support the request_fulluri flag for HTTPS
 requests, then you should set this env var to `false` or `0` to prevent Composer
 from setting the request_fulluri option.
 
-### COMPOSER_HOME
+### COMPOSER_SELF_UPDATE_TARGET
 
-The `COMPOSER_HOME` var allows you to change the Composer home directory. This
-is a hidden, global (per-user on the machine) directory that is shared between
-all projects.
+If set, makes the self-update command write the new Composer phar file into that path instead of overwriting itself. Useful for updating Composer on read-only filesystem.
 
-By default it points to `C:\Users\<user>\AppData\Roaming\Composer` on Windows
-and `/Users/<user>/.composer` on OSX. On \*nix systems that follow the [XDG Base
-Directory Specifications](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html),
-it points to `$XDG_CONFIG_HOME/composer`. On other \*nix systems, it points to
-`/home/<user>/.composer`.
+### no_proxy or NO_PROXY
 
-#### COMPOSER_HOME/config.json
+If you are behind a proxy and would like to disable it for certain domains, you
+can use the `no_proxy` or `NO_PROXY` env var. Simply set it to a comma separated list of
+domains the proxy should *not* be used for.
 
-You may put a `config.json` file into the location which `COMPOSER_HOME` points
-to. Composer will merge this configuration with your project's `composer.json`
-when you run the `install` and `update` commands.
-
-This file allows you to set [repositories](05-repositories.md) and
-[configuration](06-config.md) for the user's projects.
-
-In case global configuration matches _local_ configuration, the _local_
-configuration in the project's `composer.json` always wins.
-
-### COMPOSER_CACHE_DIR
-
-The `COMPOSER_CACHE_DIR` var allows you to change the Composer cache directory,
-which is also configurable via the [`cache-dir`](06-config.md#cache-dir) option.
-
-By default it points to `$COMPOSER_HOME/cache` on \*nix and OSX, and
-`C:\Users\<user>\AppData\Local\Composer` (or `%LOCALAPPDATA%/Composer`) on Windows.
-
-### COMPOSER_PROCESS_TIMEOUT
-
-This env var controls the time Composer waits for commands (such as git
-commands) to finish executing. The default value is 300 seconds (5 minutes).
-
-### COMPOSER_CAFILE
-
-By setting this environmental value, you can set a path to a certificate bundle
-file to be used during SSL/TLS peer verification.
-
-### COMPOSER_AUTH
-
-The `COMPOSER_AUTH` var allows you to set up authentication as an environment variable.
-The contents of the variable should be a JSON formatted object containing http-basic,
-github-oauth, bitbucket-oauth, ... objects as needed, and following the
-[spec from the config](06-config.md#gitlab-oauth).
-
-### COMPOSER_DISCARD_CHANGES
-
-This env var controls the [`discard-changes`](06-config.md#discard-changes) config option.
-
-### COMPOSER_NO_INTERACTION
-
-If set to 1, this env var will make Composer behave as if you passed the
-`--no-interaction` flag to every command. This can be set on build boxes/CI.
-
-### COMPOSER_ALLOW_SUPERUSER
-
-If set to 1, this env disables the warning about running commands as root/super user.
-It also disables automatic clearing of sudo sessions, so you should really only set this
-if you use Composer as super user at all times like in docker containers.
-
-### COMPOSER_MEMORY_LIMIT
-
-If set, the value is used as php's memory_limit.
-
-### COMPOSER_MIRROR_PATH_REPOS
-
-If set to 1, this env changes the default path repository strategy to `mirror` instead
-of `symlink`. As it is the default strategy being set it can still be overwritten by
-repository options.
-
-### COMPOSER_HTACCESS_PROTECT
-
-Defaults to `1`. If set to `0`, Composer will not create `.htaccess` files in the
-composer home, cache, and data directories.
+The env var accepts domains, IP addresses, and IP address blocks in CIDR
+notation. You can restrict the filter to a particular port (e.g. `:80`). You
+can also set it to `*` to ignore the proxy for all HTTP requests.
 
 &larr; [Libraries](02-libraries.md)  |  [Schema](04-schema.md) &rarr;

@@ -50,7 +50,7 @@ class RuleSetGenerator
      *                                      reason for generating this rule
      * @param  mixed            $reasonData Any data, e.g. the requirement name,
      *                                      that goes with the reason
-     * @return Rule             The generated rule or null if tautological
+     * @return Rule|null             The generated rule or null if tautological
      */
     protected function createRequireRule(PackageInterface $package, array $providers, $reason, $reasonData = null)
     {
@@ -117,7 +117,7 @@ class RuleSetGenerator
      *                                      reason for generating this rule
      * @param  mixed            $reasonData Any data, e.g. the package name, that
      *                                      goes with the reason
-     * @return Rule             The generated rule
+     * @return Rule|null             The generated rule
      */
     protected function createRule2Literals(PackageInterface $issuer, PackageInterface $provider, $reason, $reasonData = null)
     {
@@ -233,12 +233,16 @@ class RuleSetGenerator
         }
     }
 
-    protected function addConflictRules()
+    protected function addConflictRules($ignorePlatformReqs = false)
     {
         /** @var PackageInterface $package */
         foreach ($this->addedPackages as $package) {
             foreach ($package->getConflicts() as $link) {
                 if (!isset($this->addedPackagesByNames[$link->getTarget()])) {
+                    continue;
+                }
+
+                if ($ignorePlatformReqs && preg_match(PlatformRepository::PLATFORM_PACKAGE_REGEX, $link->getTarget())) {
                     continue;
                 }
 
@@ -362,7 +366,7 @@ class RuleSetGenerator
 
         $this->addRulesForJobs($ignorePlatformReqs);
 
-        $this->addConflictRules();
+        $this->addConflictRules($ignorePlatformReqs);
 
         // Remove references to packages
         $this->addedPackages = $this->addedPackagesByNames = null;

@@ -55,11 +55,9 @@ use Cake\Log\LogTrait;
  *
  * @link https://book.cakephp.org/3.0/en/controllers/components.html
  * @see \Cake\Controller\Controller::$components
- * @mixin \Cake\Core\InstanceConfigTrait
  */
 class Component implements EventListenerInterface
 {
-
     use InstanceConfigTrait;
     use LogTrait;
 
@@ -161,7 +159,7 @@ class Component implements EventListenerInterface
      * Magic method for lazy loading $components.
      *
      * @param string $name Name of component to get.
-     * @return mixed A Component object or null.
+     * @return \Cake\Controller\Component|null A Component object or null.
      */
     public function __get($name)
     {

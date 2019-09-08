@@ -26,7 +26,7 @@ class TypeMap
      * Used to avoid repetition when calling multiple functions inside this class that
      * may require a custom type for a specific field.
      *
-     * @var array
+     * @var string[]
      */
     protected $_defaults;
 
@@ -36,14 +36,14 @@ class TypeMap
      * Used to avoid repetition when calling multiple functions inside this class that
      * may require a custom type for a specific field.
      *
-     * @var array
+     * @var string[]
      */
     protected $_types = [];
 
     /**
      * Creates an instance with the given defaults
      *
-     * @param array $defaults The defaults to use.
+     * @param string[] $defaults The defaults to use.
      */
     public function __construct(array $defaults = [])
     {
@@ -51,10 +51,13 @@ class TypeMap
     }
 
     /**
-     * Configures a map of default fields and their associated types to be
-     * used as the default list of types for every function in this class
-     * with a $types param. Useful to avoid repetition when calling the same
-     * functions using the same fields and types.
+     * Configures a map of fields and associated type.
+     *
+     * These values will be used as the default mapping of types for every function
+     * in this instance that supports a `$types` param.
+     *
+     * This method is useful when you want to avoid repeating type definitions
+     * as setting types overwrites the last set of types.
      *
      * ### Example
      *
@@ -62,9 +65,10 @@ class TypeMap
      * $query->setDefaults(['created' => 'datetime', 'is_visible' => 'boolean']);
      * ```
      *
-     * This method will replace all the existing type maps with the ones provided.
+     * This method will replace all the existing default mappings with the ones provided.
+     * To add into the mappings use `addDefaults()`.
      *
-     * @param array $defaults Associative array where keys are field names and values
+     * @param string[] $defaults Associative array where keys are field names and values
      * are the correspondent type.
      * @return $this
      */
@@ -78,7 +82,7 @@ class TypeMap
     /**
      * Returns the currently configured types.
      *
-     * @return array
+     * @return string[]
      */
     public function getDefaults()
     {
@@ -99,7 +103,8 @@ class TypeMap
      * $query->defaults(['created' => 'datetime', 'is_visible' => 'boolean']);
      * ```
      *
-     * This method will replace all the existing type maps with the ones provided.
+     * This method will replace all the existing default mappings with the ones provided.
+     * To add into the mappings use addDefaults()
      *
      * @deprecated 3.4.0 Use setDefaults()/getDefaults() instead.
      * @param array|null $defaults associative array where keys are field names and values
@@ -124,7 +129,7 @@ class TypeMap
      *
      * If a key already exists it will not be overwritten.
      *
-     * @param array $types The additional types to add.
+     * @param string[] $types The additional types to add.
      * @return void
      */
     public function addDefaults(array $types)
@@ -143,7 +148,7 @@ class TypeMap
      *
      * This method will replace all the existing type maps with the ones provided.
      *
-     * @param array $types Associative array where keys are field names and values
+     * @param string[] $types Associative array where keys are field names and values
      * are the correspondent type.
      * @return $this
      */
@@ -157,7 +162,7 @@ class TypeMap
     /**
      * Gets a map of fields and their associated types for single-use.
      *
-     * @return array
+     * @return string[]
      */
     public function getTypes()
     {
@@ -201,7 +206,7 @@ class TypeMap
      * null will be returned.
      *
      * @param string $column The type for a given column
-     * @return null|string
+     * @return string|null
      */
     public function type($column)
     {
@@ -218,7 +223,7 @@ class TypeMap
     /**
      * Returns an array of all types mapped types
      *
-     * @return array
+     * @return string[]
      */
     public function toArray()
     {

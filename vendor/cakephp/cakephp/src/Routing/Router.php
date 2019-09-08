@@ -18,7 +18,12 @@ use Cake\Core\Configure;
 use Cake\Http\ServerRequest;
 use Cake\Routing\Exception\MissingRouteException;
 use Cake\Utility\Inflector;
+use Exception;
 use Psr\Http\Message\ServerRequestInterface;
+use ReflectionFunction;
+use ReflectionMethod;
+use RuntimeException;
+use Throwable;
 
 /**
  * Parses the request URL into controller, action, and parameters. Uses the connected routes
@@ -206,6 +211,7 @@ class Router
     {
         static::$initialized = true;
         static::scope('/', function ($routes) use ($route, $defaults, $options) {
+            /** @var \Cake\Routing\RouteBuilder $routes */
             $routes->connect($route, $defaults, $options);
         });
     }
@@ -216,7 +222,7 @@ class Router
      * Compatibility proxy to \Cake\Routing\RouteBuilder::redirect() in the `/` scope.
      *
      * @param string $route A string describing the template of the route
-     * @param array $url A URL to redirect to. Can be a string or a Cake array-based URL
+     * @param array|string $url A URL to redirect to. Can be a string or a Cake array-based URL
      * @param array $options An array matching the named elements in the route to regular expressions which that
      *   element should match. Also contains additional parameters such as which routed parameters should be
      *   shifted into the passed arguments. As well as supplying patterns for routing parameters.
@@ -313,6 +319,7 @@ class Router
             }
 
             $callback = function ($routes) use ($name, $options) {
+                /** @var \Cake\Routing\RouteBuilder $routes */
                 $routes->resources($name, $options);
             };
 
@@ -515,6 +522,30 @@ class Router
     }
 
     /**
+     * Reset routes and related state.
+     *
+     * Similar to reload() except that this doesn't reset all global state,
+     * as that leads to incorrect behavior in some plugin test case scenarios.
+     *
+     * This method will reset:
+     *
+     * - routes
+     * - URL Filters
+     * - the initialized property
+     *
+     * Extensions and default route classes will not be modified
+     *
+     * @internal
+     * @return void
+     */
+    public static function resetRoutes()
+    {
+        static::$_collection = new RouteCollection();
+        static::$_urlFilters = [];
+        static::$initialized = false;
+    }
+
+    /**
      * Add a URL filter to Router.
      *
      * URL filter functions are applied to every array $url provided to
@@ -559,8 +590,29 @@ class Router
     protected static function _applyUrlFilters($url)
     {
         $request = static::getRequest(true);
+        $e = null;
         foreach (static::$_urlFilters as $filter) {
-            $url = $filter($url, $request);
+            try {
+                $url = $filter($url, $request);
+            } catch (Exception $e) {
+                // fall through
+            } catch (Throwable $e) {
+                // fall through
+            }
+            if ($e !== null) {
+                if (is_array($filter)) {
+                    $ref = new ReflectionMethod($filter[0], $filter[1]);
+                } else {
+                    $ref = new ReflectionFunction($filter);
+                }
+                $message = sprintf(
+                    'URL filter defined in %s on line %s could not be applied. The filter failed with: %s',
+                    $ref->getFileName(),
+                    $ref->getStartLine(),
+                    $e->getMessage()
+                );
+                throw new RuntimeException($message, $e->getCode(), $e);
+            }
         }
 
         return $url;

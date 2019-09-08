@@ -178,7 +178,7 @@ class RedisEngine extends CacheEngine
 
         $value = (int)$this->_Redis->incrBy($key, $offset);
         if ($duration > 0) {
-            $this->_Redis->setTimeout($key, $duration);
+            $this->_Redis->expire($key, $duration);
         }
 
         return $value;
@@ -198,7 +198,7 @@ class RedisEngine extends CacheEngine
 
         $value = (int)$this->_Redis->decrBy($key, $offset);
         if ($duration > 0) {
-            $this->_Redis->setTimeout($key, $duration);
+            $this->_Redis->expire($key, $duration);
         }
 
         return $value;
@@ -214,7 +214,7 @@ class RedisEngine extends CacheEngine
     {
         $key = $this->_key($key);
 
-        return $this->_Redis->delete($key) > 0;
+        return $this->_Redis->del($key) > 0;
     }
 
     /**
@@ -228,14 +228,27 @@ class RedisEngine extends CacheEngine
         if ($check) {
             return true;
         }
-        $keys = $this->_Redis->getKeys($this->_config['prefix'] . '*');
 
-        $result = [];
-        foreach ($keys as $key) {
-            $result[] = $this->_Redis->delete($key) > 0;
+        $this->_Redis->setOption(Redis::OPT_SCAN, Redis::SCAN_RETRY);
+
+        $isAllDeleted = true;
+        $iterator = null;
+        $pattern = $this->_config['prefix'] . '*';
+
+        while (true) {
+            $keys = $this->_Redis->scan($iterator, $pattern);
+
+            if ($keys === false) {
+                break;
+            }
+
+            foreach ($keys as $key) {
+                $isDeleted = ($this->_Redis->del($key) > 0);
+                $isAllDeleted = $isAllDeleted && $isDeleted;
+            }
         }
 
-        return !in_array(false, $result);
+        return $isAllDeleted;
     }
 
     /**
@@ -258,7 +271,7 @@ class RedisEngine extends CacheEngine
 
         // setNx() doesn't have an expiry option, so follow up with an expiry
         if ($this->_Redis->setNx($key, $value)) {
-            return $this->_Redis->setTimeout($key, $duration);
+            return $this->_Redis->expire($key, $duration);
         }
 
         return false;

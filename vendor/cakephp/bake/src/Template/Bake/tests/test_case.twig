@@ -19,13 +19,14 @@
 {% set isShell = type|lower == 'shell' %}
 {% set isCommand = type|lower == 'command' %}
 {% if isController %}
-    {%- set superClassName = 'IntegrationTestCase' %}
+    {%- set traitName = 'IntegrationTestTrait' %}
 {% elseif isShell or isCommand %}
-    {%- set superClassName = 'ConsoleIntegrationTestCase' %}
-{% else %}
-    {%- set superClassName = 'TestCase' %}
+    {%- set traitName = 'ConsoleIntegrationTestTrait' %}
 {% endif %}
-{%- set uses = uses|merge(["Cake\\TestSuite\\#{superClassName}"]) %}
+{%- set uses = uses|merge(["Cake\\TestSuite\\TestCase"]) %}
+{% if traitName %}
+    {%- set uses = uses|merge(["Cake\\TestSuite\\#{traitName}"]) %}
+{% endif %}
 
 {%- set uses = uses|sort %}
 <?php
@@ -37,33 +38,49 @@ use {{ dependency }};
 
 /**
  * {{ fullClassName }} Test Case
+{% if isController or isCommand %}
+ *
+ * @uses \{{ fullClassName }}
+{% endif %}
  */
-class {{ className }}Test extends {{ superClassName }}
+class {{ className }}Test extends TestCase
 {
+{% if traitName %}
+    use {{ traitName }};
+{% if properties or fixtures or construction or methods %}
+
+{% endif %}
+{% endif %}
 {% if properties %}
 {% for propertyInfo in properties %}
+{% if loop.index > 1 %}
 
+{% endif %}
     /**
      * {{ propertyInfo.description }}
      *
      * @var {{ propertyInfo.type }}
      */
     public ${{ propertyInfo.name }}{% if propertyInfo.value is defined and propertyInfo.value %} = {{ propertyInfo.value }}{% endif %};
+{% if loop.last and (fixtures or construction or methods) %}
+
+{% endif %}
 {% endfor %}
 {% endif %}
 
 {%- if fixtures %}
-
     /**
      * Fixtures
      *
      * @var array
      */
     public $fixtures = [{{ Bake.stringifyList(fixtures|values)|raw }}];
+{% if construction or methods %}
+
+{% endif %}
 {% endif %}
 
 {%- if construction %}
-
     /**
      * setUp method
      *
@@ -97,11 +114,16 @@ class {{ className }}Test extends {{ superClassName }}
 
         parent::tearDown();
     }
+{% if methods %}
+
+{% endif %}
 {% endif %}
 {% endif %}
 
 {%- for method in methods %}
+{% if loop.index > 1 %}
 
+{% endif %}
     /**
      * Test {{ method }} method
      *
@@ -114,7 +136,9 @@ class {{ className }}Test extends {{ superClassName }}
 {% endfor %}
 
 {%- if not methods %}
+{%- if traitName or properties or fixtures or construction or methods %}
 
+{% endif %}
     /**
      * Test initial setup
      *

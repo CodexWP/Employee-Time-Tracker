@@ -105,14 +105,14 @@ abstract class Association
     /**
      * The field name in the owning side table that is used to match with the foreignKey
      *
-     * @var string|array
+     * @var string|string[]
      */
     protected $_bindingKey;
 
     /**
      * The name of the field representing the foreign key to the table to load
      *
-     * @var string|array
+     * @var string|string[]
      */
     protected $_foreignKey;
 
@@ -179,8 +179,9 @@ abstract class Association
 
     /**
      * The default finder name to use for fetching rows from the target table
+     * With array value, finder name and default options are allowed.
      *
-     * @var string
+     * @var string|array
      */
     protected $_finder = 'all';
 
@@ -335,13 +336,52 @@ abstract class Association
     }
 
     /**
+     * Sets the class name of the target table object.
+     *
+     * @param string $className Class name to set.
+     * @return $this
+     * @throws \InvalidArgumentException In case the class name is set after the target table has been
+     *  resolved, and it doesn't match the target table's class name.
+     */
+    public function setClassName($className)
+    {
+        if ($this->_targetTable !== null &&
+            get_class($this->_targetTable) !== App::className($className, 'Model/Table', 'Table')
+        ) {
+            throw new InvalidArgumentException(
+                'The class name doesn\'t match the target table\'s class name.'
+            );
+        }
+
+        $this->_className = $className;
+
+        return $this;
+    }
+
+    /**
+     * Gets the class name of the target table object.
+     *
+     * @return string
+     */
+    public function getClassName()
+    {
+        return $this->_className;
+    }
+
+    /**
      * The class name of the target table object
      *
+     * @deprecated 3.7.0 Use getClassName() instead.
      * @return string
      */
     public function className()
     {
-        return $this->_className;
+        deprecationWarning(
+            get_called_class() . '::className() is deprecated. ' .
+            'Use getClassName() instead.'
+        );
+
+        return $this->getClassName();
     }
 
     /**
@@ -521,7 +561,7 @@ abstract class Association
      * Sets the name of the field representing the binding field with the target table.
      * When not manually specified the primary key of the owning side table is used.
      *
-     * @param string|array $key the table field or fields to be used to link both tables together
+     * @param string|string[] $key the table field or fields to be used to link both tables together
      * @return $this
      */
     public function setBindingKey($key)
@@ -535,7 +575,7 @@ abstract class Association
      * Gets the name of the field representing the binding field with the target table.
      * When not manually specified the primary key of the owning side table is used.
      *
-     * @return string|array
+     * @return string|string[]
      */
     public function getBindingKey()
     {
@@ -574,7 +614,7 @@ abstract class Association
     /**
      * Gets the name of the field representing the foreign key to the target table.
      *
-     * @return string|array
+     * @return string|string[]
      */
     public function getForeignKey()
     {
@@ -584,7 +624,7 @@ abstract class Association
     /**
      * Sets the name of the field representing the foreign key to the target table.
      *
-     * @param string|array $key the key or keys to be used to link both tables together
+     * @param string|string[] $key the key or keys to be used to link both tables together
      * @return $this
      */
     public function setForeignKey($key)
@@ -859,7 +899,7 @@ abstract class Association
     /**
      * Gets the default finder to use for fetching rows from the target table.
      *
-     * @return string
+     * @return string|array
      */
     public function getFinder()
     {
@@ -869,7 +909,7 @@ abstract class Association
     /**
      * Sets the default finder to use for fetching rows from the target table.
      *
-     * @param string $finder the finder name to use
+     * @param string|array $finder the finder name to use or array of finder name and option.
      * @return $this
      */
     public function setFinder($finder)
@@ -886,7 +926,7 @@ abstract class Association
      *
      * @deprecated 3.4.0 Use setFinder()/getFinder() instead.
      * @param string|null $finder the finder name to use
-     * @return string
+     * @return string|array
      */
     public function finder($finder = null)
     {

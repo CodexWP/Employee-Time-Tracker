@@ -949,7 +949,7 @@ class ConsoleOptionParser
      * algorithm.
      *
      * @param string $needle Unknown item (either a subcommand name or an option for instance) trying to be used.
-     * @param array $haystack List of items available for the type $needle belongs to.
+     * @param string[] $haystack List of items available for the type $needle belongs to.
      * @return string|null The closest name to the item submitted by the user.
      */
     protected function findClosestItem($needle, $haystack)
@@ -1073,8 +1073,8 @@ class ConsoleOptionParser
         if (substr($name, 0, 2) === '--') {
             return isset($this->_options[substr($name, 2)]);
         }
-        if ($name{0} === '-' && $name{1} !== '-') {
-            return isset($this->_shortOptions[$name{1}]);
+        if ($name[0] === '-' && $name[1] !== '-') {
+            return isset($this->_shortOptions[$name[1]]);
         }
 
         return false;
@@ -1086,7 +1086,7 @@ class ConsoleOptionParser
      *
      * @param string $argument The argument to append
      * @param array $args The array of parsed args to append to.
-     * @return array Args
+     * @return string[] Args
      * @throws \Cake\Console\Exception\ConsoleException
      */
     protected function _parseArg($argument, $args)

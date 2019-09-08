@@ -68,7 +68,7 @@ Router::scope('/', function (RouteBuilder $routes) {
     $routes->connect('/projects/addtask', ['controller' => 'Projects', 'action' => 'addtask']);
     
     $routes->connect('/status', ['controller' => 'Settings', 'action' => 'systemstatus']);
-    
+
     /**
      * Connect catchall routes for all controllers.
      *
@@ -86,4 +86,14 @@ Router::scope('/', function (RouteBuilder $routes) {
      * routes you want in your application.
      */
     $routes->fallbacks(DashedRoute::class);
+});
+
+Router::prefix('api', function ($routes) {
+    $routes->extensions(['json']);
+    $routes->connect('/login', ['controller' => 'Api', 'action' => 'login']);
+    $routes->connect('/getprojects/:id', ['controller' => 'Api', 'action' => 'getprojects'], ['pass' => ['id']]);
+    $routes->connect('/add', ['controller' => 'Api', 'action' => 'add']);
+
+
+    $routes->fallbacks('InflectedRoute');
 });

@@ -14,3 +14,18 @@ Stack Trace:
 #11 {main}
 
 
+2019-09-07 17:27:59 Error: [Cake\Core\Exception\MissingPluginException] Plugin Rest could not be found. in E:\xampp\htdocs\tracker\vendor\cakephp\cakephp\src\Core\PluginCollection.php on line 127
+Exception Attributes: array (
+  'plugin' => 'Rest',
+)
+Stack Trace:
+#0 E:\xampp\htdocs\tracker\vendor\cakephp\cakephp\src\Core\Plugin.php(134): Cake\Core\PluginCollection->findPath('Rest')
+#1 E:\xampp\htdocs\tracker\config\bootstrap.php(201): Cake\Core\Plugin::load('Rest', Array)
+#2 E:\xampp\htdocs\tracker\vendor\cakephp\cakephp\src\Http\BaseApplication.php(152): require_once('E:\\xampp\\htdocs...')
+#3 E:\xampp\htdocs\tracker\src\Application.php(40): Cake\Http\BaseApplication->bootstrap()
+#4 E:\xampp\htdocs\tracker\vendor\cakephp\cakephp\src\Console\CommandRunner.php(191): App\Application->bootstrap()
+#5 E:\xampp\htdocs\tracker\vendor\cakephp\cakephp\src\Console\CommandRunner.php(136): Cake\Console\CommandRunner->bootstrap()
+#6 E:\xampp\htdocs\tracker\bin\cake.php(12): Cake\Console\CommandRunner->run(Array)
+#7 {main}
+
+

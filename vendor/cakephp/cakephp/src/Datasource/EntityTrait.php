@@ -15,6 +15,7 @@
 namespace Cake\Datasource;
 
 use Cake\Collection\Collection;
+use Cake\Utility\Hash;
 use Cake\Utility\Inflector;
 use InvalidArgumentException;
 use Traversable;
@@ -555,7 +556,7 @@ trait EntityTrait
     }
 
     /**
-     * Get the list of visible properties.
+     * Gets the list of visible properties.
      *
      * The list of visible properties is all standard properties
      * plus virtual properties minus hidden properties.
@@ -563,12 +564,32 @@ trait EntityTrait
      * @return array A list of properties that are 'visible' in all
      *     representations.
      */
-    public function visibleProperties()
+    public function getVisible()
     {
         $properties = array_keys($this->_properties);
         $properties = array_merge($properties, $this->_virtual);
 
         return array_diff($properties, $this->_hidden);
+    }
+
+    /**
+     * Gets the list of visible properties.
+     *
+     * The list of visible properties is all standard properties
+     * plus virtual properties minus hidden properties.
+     *
+     * @return array A list of properties that are 'visible' in all
+     *     representations.
+     * @deprecated 3.8.0 Use getVisible() instead.
+     */
+    public function visibleProperties()
+    {
+        deprecationWarning(
+            get_called_class() . '::visibleProperties() is deprecated. ' .
+            'Use getVisible() instead.'
+        );
+
+        return $this->getVisible();
     }
 
     /**
@@ -583,7 +604,7 @@ trait EntityTrait
     public function toArray()
     {
         $result = [];
-        foreach ($this->visibleProperties() as $property) {
+        foreach ($this->getVisible() as $property) {
             $value = $this->get($property);
             if (is_array($value)) {
                 $result[$property] = [];
@@ -611,7 +632,7 @@ trait EntityTrait
      */
     public function jsonSerialize()
     {
-        return $this->extract($this->visibleProperties());
+        return $this->extract($this->getVisible());
     }
 
     /**
@@ -840,7 +861,7 @@ trait EntityTrait
     /**
      * Gets the dirty properties.
      *
-     * @return array
+     * @return string[]
      */
     public function getDirty()
     {
@@ -892,6 +913,31 @@ trait EntityTrait
     }
 
     /**
+     * Returns whether this entity has errors.
+     *
+     * @param bool $includeNested true will check nested entities for hasErrors()
+     * @return bool
+     */
+    public function hasErrors($includeNested = true)
+    {
+        if (Hash::filter($this->_errors)) {
+            return true;
+        }
+
+        if ($includeNested === false) {
+            return false;
+        }
+
+        foreach ($this->_properties as $property) {
+            if ($this->_readHasErrors($property)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Returns all validation errors.
      *
      * @return array
@@ -937,21 +983,21 @@ trait EntityTrait
      * $entity->setErrors(['salary' => ['message'], 'name' => ['another message']]);
      * ```
      *
-     * @param array $fields The array of errors to set.
+     * @param array $errors The array of errors to set.
      * @param bool $overwrite Whether or not to overwrite pre-existing errors for $fields
      * @return $this
      */
-    public function setErrors(array $fields, $overwrite = false)
+    public function setErrors(array $errors, $overwrite = false)
     {
         if ($overwrite) {
-            foreach ($fields as $f => $error) {
+            foreach ($errors as $f => $error) {
                 $this->_errors[$f] = (array)$error;
             }
 
             return $this;
         }
 
-        foreach ($fields as $f => $error) {
+        foreach ($errors as $f => $error) {
             $this->_errors += [$f => []];
 
             // String messages are appended to the list,
@@ -1007,13 +1053,13 @@ trait EntityTrait
      * $entity->errors('salary', ['must be numeric', 'must be a positive number']);
      *
      * // Returns the error messages for a single field
-     * $entity->errors('salary');
+     * $entity->getErrors('salary');
      *
      * // Returns all error messages indexed by field name
-     * $entity->errors();
+     * $entity->getErrors();
      *
      * // Sets the error messages for multiple fields at once
-     * $entity->errors(['salary' => ['message'], 'name' => ['another message']);
+     * $entity->getErrors(['salary' => ['message'], 'name' => ['another message']);
      * ```
      *
      * When used as a setter, this method will return this entity instance for method
@@ -1054,13 +1100,19 @@ trait EntityTrait
      */
     protected function _nestedErrors($field)
     {
+        // Only one path element, check for nested entity with error.
+        if (strpos($field, '.') === false) {
+            return $this->_readError($this->get($field));
+        }
+        // Try reading the errors data with field as a simple path
+        $error = Hash::get($this->_errors, $field);
+        if ($error !== null) {
+            return $error;
+        }
         $path = explode('.', $field);
 
-        // Only one path element, check for nested entity with error.
-        if (count($path) === 1) {
-            return $this->_readError($this->get($path[0]));
-        }
-
+        // Traverse down the related entities/arrays for
+        // the relevant entity.
         $entity = $this;
         $len = count($path);
         while ($len) {
@@ -1088,6 +1140,29 @@ trait EntityTrait
         }
 
         return [];
+    }
+
+    /**
+     * Reads if there are errors for one or many objects.
+     *
+     * @param mixed $object The object to read errors from.
+     * @return bool
+     */
+    protected function _readHasErrors($object)
+    {
+        if ($object instanceof EntityInterface && $object->hasErrors()) {
+            return true;
+        }
+
+        if (is_array($object)) {
+            foreach ($object as $value) {
+                if ($this->_readHasErrors($value)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1132,7 +1207,7 @@ trait EntityTrait
      * Get a single value of an invalid field. Returns null if not set.
      *
      * @param string $field The name of the field.
-     * @return mixed
+     * @return mixed|null
      */
     public function getInvalidField($field)
     {
@@ -1410,6 +1485,7 @@ trait EntityTrait
             '[dirty]' => $this->_dirty,
             '[original]' => $this->_original,
             '[virtual]' => $this->_virtual,
+            '[hasErrors]' => $this->hasErrors(),
             '[errors]' => $this->_errors,
             '[invalid]' => $this->_invalid,
             '[repository]' => $this->_registryAlias
