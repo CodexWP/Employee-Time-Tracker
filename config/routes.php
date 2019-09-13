@@ -91,8 +91,9 @@ Router::scope('/', function (RouteBuilder $routes) {
 Router::prefix('api', function ($routes) {
     $routes->extensions(['json']);
     $routes->connect('/login', ['controller' => 'Api', 'action' => 'login']);
-    $routes->connect('/getprojects/:id', ['controller' => 'Api', 'action' => 'getprojects'], ['pass' => ['id']]);
-    $routes->connect('/add', ['controller' => 'Api', 'action' => 'add']);
+    $routes->connect('/projects', ['controller' => 'Api', 'action' => 'getprojects']);
+    $routes->connect('/tasks', ['controller' => 'Api', 'action' => 'gettasks']);
+    $routes->connect('/time', ['controller' => 'Api', 'action' => 'gettime']);
 
 
     $routes->fallbacks('InflectedRoute');

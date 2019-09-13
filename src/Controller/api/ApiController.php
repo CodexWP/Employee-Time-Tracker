@@ -15,9 +15,7 @@ class ApiController extends AppController
     {
         parent::initialize();
         $this->loadModel('Users');
-
         $this->Auth->allow(['login',]);
-
     }
 
     public function beforeFilter(Event $event) {
@@ -30,7 +28,6 @@ class ApiController extends AppController
     public function login()
     {
         $user = $this->Auth->identify();
-
         if (!$user) {
             throw new UnauthorizedException("Invalid login details");
         }else{
@@ -56,52 +53,70 @@ class ApiController extends AppController
         }
     }
 
-    public function getprojects($userid=null){
-        $pmodel = $this->loadModel('Projects');
-        $query = $pmodel->find("all");
-        $projects = $query->select(['task_count' => $query->func()->count('c.id'),'project_id','project_name','project_desc','status'])
-            ->join([
-                'pm'=>[
-                    'table' => 'projectmembers',
-                    'alias' => 'pm',
-                    'type' => 'INNER',
-                    'conditions' => 'Projects.project_id = pm.project_id',
-                ],
-                'c'=> [
-                    'table' => 'tasks',
-                    'type' => 'LEFT',
-                    'conditions' => 'c.project_id = Projects.project_id',
-                ]
-            ])
-            ->group('Projects.project_id')
-            ->where(['pm.userid'=>$userid])->limit(8);
-
-        $status = 1;
-        $this->set(compact('projects','status'));
-        $this->set('_serialize', ['projects', 'status']);
-    }
-
-
-
-    public function add()
+    public function gettime()
     {
-        $user = $this->Users->newEntity();
-        if ($this->request->is('post')) {
-            $this->request->getData['group_id'] = 1;
-            $user = $this->Users->patchEntity($user, $this->request->getData);
-            if ($this->Users->save($user)) {
-                $msg['msg'] = 'The user has been saved.';
-                $msg['status'] = 1;
-            } else {
-                $msg['msg'] = 'The user could not be saved. Please, try again.';
-                $msg['status'] = 0;
-                $msg['error'] = $user->getErrors();
-            }
-            extract($msg);
-            $this->set(compact('error', 'status', 'msg'));
-            $this->set('_serialize', ['error', 'status', 'msg']);
-        }
-
+        $time = time();
+        $status = 1;
+        $this->set(compact('time', 'status'));
+        $this->set('_serialize', ['time', 'status']);
     }
+
+    public function getprojects(){
+        $data = $this->request->getData();
+        if(!isset($data['userid']))
+        {
+            throw new UnauthorizedException("Invalid Request");
+        }
+        else {
+            $userid = $data['userid'];
+            $pmodel = $this->loadModel('Projects');
+            $query = $pmodel->find("all");
+            $projects = $query->select(['task_count' => $query->func()->count('c.id'), 'project_id', 'project_name', 'project_desc', 'status'])
+                ->join([
+                    'pm' => [
+                        'table' => 'projectmembers',
+                        'alias' => 'pm',
+                        'type' => 'INNER',
+                        'conditions' => 'Projects.project_id = pm.project_id',
+                    ],
+                    'c' => [
+                        'table' => 'tasks',
+                        'type' => 'LEFT',
+                        'conditions' => 'c.project_id = Projects.project_id',
+                    ]
+                ])
+                ->group('Projects.project_id')
+                ->where(['pm.userid' => $userid])->limit(8);
+
+            $status = 1;
+            $this->set(compact('projects', 'status'));
+            $this->set('_serialize', ['projects', 'status']);
+        }
+    }
+
+    public function gettasks()
+    {
+        $data = $this->request->getData();
+        if(!isset($data['userid']) && !isset($data['project_id']))
+        {
+            throw new UnauthorizedException("Invalid Request");
+        }
+        else {
+            $userid = $data['userid'];
+            $project_id = $data['project_id'];
+
+            $pmmodel = $this->loadModel('Projectmembers');
+            $pm = $pmmodel->find("all")->where(['userid' => $userid, 'project_id' => $project_id])->first();
+            if ($pm) {
+
+                $tmodel = $this->loadModel('Tasks');
+                $tasks = $tmodel->find('all')->where(['project_id' => $project_id]);
+                $status = 1;
+                $this->set(compact('tasks', 'status'));
+                $this->set('_serialize', ['tasks', 'status']);
+            }
+        }
+    }
+
 
 }
