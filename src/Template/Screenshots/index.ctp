@@ -41,7 +41,7 @@ $projects = $ctpdata['projects'];
                                         <button class="btn btn-default prepend-button input-sm border-right-radius-0"><i class="fa fa-user-o"></i> Member</button>
                                         <?php  echo $this->Form->select('userid',
                                             $members,
-                                            ['value' => $this->request->getQuery('userid'),'class'=>'form-control input-sm','empty' => 'ChOOSE ONE','required'=>'true']
+                                            ['value' => $this->request->getQuery('userid'),'class'=>'form-control input-sm','empty' => 'Choose One','required'=>'true']
                                         );
                                         ?>
                                     </div>
@@ -78,8 +78,8 @@ $projects = $ctpdata['projects'];
                     $time_slot  =$scr->time_slot->format('Y/m/d h a');
                     $time_hour = $scr->time_slot->format('h a');
                     $scr_url = $scr->screenshot?$scr->screenshot:$this->Url->build('/img/no-screenshot.jpg', true);
-
-                    $ks = $scr->keystrokes_count?$scr->keystrokes_count:0;
+                    $minute = $scr->minutes;
+                    $ks = $kst = $scr->keystrokes_count?$scr->keystrokes_count:0;
                     $mm = $scr->mousemove_count?$scr->mousemove_count:0;
                     $ks = ($ks*100)/250;
 
@@ -96,16 +96,16 @@ $projects = $ctpdata['projects'];
                         echo '<div class="col-sm-2 p-l-5 p-r-5">
                                 <div class="border rounded text-center single-screenshot">
                                     <img style="width:100%;height:auto;" src="'.$scr_url.'">
-                                    <small id="time">'.$scr_time.'</small><br>
-                                    <small id="project" style="background: #f2f7f8;padding: 5px;border-radius: 5px;border:1px solid gainsboro;">'.$pro_name.'</small>
+                                    <small class="time">'.$scr_time.' - '.$minute.'m</small><br>
+                                    <small class="project" style="background: #f2f7f8;padding: 5px;border-radius: 5px;border:1px solid gainsboro;">'.$pro_name.'</small>
                                     <br>
-                                    <i class="fa fa-keyboard-o text-themecolor d-inline-block" aria-hidden="true"></i>
-                                    <div class="progress d-inline-block" style="width:30%;height: 5px">
-                                        <div class="progress-bar bg-success keystroke" role="progressbar" style="width: '.$ks.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <i class="fa fa-keyboard-o text-themecolor d-inline-block" aria-hidden="true" title="Keystrokes-'.$kst.'"></i>
+                                    <div class="progress d-inline-block" style="width:30%;height: 5px" title="Keystrokes-'.$kst.'">
+                                        <div kstroke="'.$kst.'" class="progress-bar bg-success keystroke" role="progressbar" style="width: '.$ks.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>&nbsp;
-                                    <i class="fa fa-mouse-pointer text-themecolor d-inline-block" aria-hidden="true"></i>
-                                    <div class="progress d-inline-block" style="width:30%;height: 5px">
-                                        <div class=" progress-bar bg-success mousemove" role="progressbar" style="width: '.$mm.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <i class="fa fa-mouse-pointer text-themecolor d-inline-block" aria-hidden="true" title="Mouseclick-'.$mm.'"></i>
+                                    <div class="progress d-inline-block" style="width:30%;height: 5px" title="Mouseclick-'.$mm.'">
+                                        <div mclick="'.$mm.'" class=" progress-bar bg-success mousemove" role="progressbar" style="width: '.$mm.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                     <input type="checkbox" class="mycheckbox single-screenshot-checkbox" value="'.$scr->timeid.'">
                                 </div>
@@ -121,16 +121,16 @@ $projects = $ctpdata['projects'];
                         echo '<div class="col-sm-2 p-l-5 p-r-5">
                                 <div class="border rounded text-center single-screenshot">
                                     <img style="width:100%;height:auto;" src="'.$scr_url.'">
-                                    <small class="time">'.$scr_time.'</small><br>
+                                    <small class="time">'.$scr_time.' - '.$minute.'m</small><br>
                                     <small class="project" style="background: #f2f7f8;padding: 5px;border-radius: 5px;border:1px solid gainsboro;">'.$pro_name.'</small>
                                     <br>
-                                    <i class="fa fa-keyboard-o text-themecolor d-inline-block" aria-hidden="true"></i>
-                                    <div class="progress d-inline-block" style="width:30%;height: 5px">
-                                        <div class="progress-bar bg-success keystroke" role="progressbar" style="width: '.$ks.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <i class="fa fa-keyboard-o text-themecolor d-inline-block" aria-hidden="true" title="Keystrokes-'.$kst.'"></i>
+                                    <div class="progress d-inline-block" style="width:30%;height: 5px" title="Keystrokes-'.$kst.'">
+                                        <div kstroke="'.$kst.'" class="progress-bar bg-success keystroke" role="progressbar" style="width: '.$ks.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>&nbsp;
-                                    <i class="fa fa-mouse-pointer text-themecolor d-inline-block" aria-hidden="true"></i>
-                                    <div class="progress d-inline-block" style="width:30%;height: 5px">
-                                        <div class="progress-bar bg-success mousemove" role="progressbar" style="width: '.$mm.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <i class="fa fa-mouse-pointer text-themecolor d-inline-block" aria-hidden="true" title="Mouseclick-'.$mm.'"></i>
+                                    <div class="progress d-inline-block" style="width:30%;height: 5px" title="Mouseclick-'.$mm.'">
+                                        <div mclick="'.$mm.'" class="progress-bar bg-success mousemove" role="progressbar" style="width: '.$mm.'%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100"></div>
                                     </div>
                                     <input type="checkbox" class="mycheckbox single-screenshot-checkbox" value="'.$scr->timeid.'">
                                 </div>
@@ -168,14 +168,32 @@ $projects = $ctpdata['projects'];
             <?= $this->Form->create('amt_form',['url'=>['action'=>'addmanualtime'],'enctype' => 'multipart/form-data']) ?>
 
             <div class="modal-body p-30">
+
+
                 <div class="form-group">
-                    <label for="projectname">Project Name *</label>
-                    <?php  echo $this->Form->select('project_id',
-                        $projects,
-                        ['value' => $this->request->getQuery('project_id'),'class'=>'form-control','empty' => 'CHOOSE ONE','required'=>'true']
+                    <label for="selectdate">Select a Member *</label>
+                    <?php  echo $this->Form->select('userid',
+                        $members,
+                        ['class'=>'form-control','empty' => 'Choose One','id'=>'amt_uid_input','required'=>'true']
                     );
                     ?>
+                </div>
+
+                <div class="form-group">
+                    <label for="projectname">Project Name *</label>
+                    <!--
+                    <?php  echo $this->Form->select('project_id',
+                        $projects,
+                        ['value' => $this->request->getQuery('project_id'),'class'=>'form-control','empty' => 'Choose One','required'=>'true']
+                    );
+                    ?>
+                    -->
                     <input type="hidden" name="project_name" value="">
+
+                    <select id="amt_projectid_select" class="form-control" name="project_id">
+                        <option>Choose One</option>
+                    </select>
+
                     <script>
                         $("#addmanualtime_modal").find("select[name='project_id']").change(function(){
                             if($(this).val()!='') {
@@ -185,14 +203,7 @@ $projects = $ctpdata['projects'];
                         })
                     </script>
                 </div>
-                <div class="form-group">
-                    <label for="selectdate">Select a Member *</label>
-                    <?php  echo $this->Form->select('userid',
-                        $members,
-                        ['class'=>'form-control','empty' => 'CHOOSE ONE','id'=>'amt_uid_input','required'=>'true']
-                    );
-                    ?>
-                </div>
+
                 <div class="form-group">
                     <label for="selectdate">Select Date *</label>
                     <input name="date" class="form-control" type="text" autocomplete="off" id="amt_date_input" placeholder="Click and select a date from picker." required>
@@ -268,10 +279,10 @@ $projects = $ctpdata['projects'];
                         </div>
 
                         <div class="col-sm-4">
-                            <i class="fa fa-keyboard-o text-themecolor d-inline-block" aria-hidden="true"></i> Key Strokes Count : <data id="openscr_key"></data>
+                            <i class="fa fa-keyboard-o text-themecolor d-inline-block" aria-hidden="true"></i> Key Strokes : <data id="openscr_key"></data>
                         </div>
                         <div class="col-sm-4">
-                            <i class="fa fa-mouse-pointer text-themecolor d-inline-block" aria-hidden="true"></i> Mouse Moves Count : <data id="openscr_mouse"></data>
+                            <i class="fa fa-mouse-pointer text-themecolor d-inline-block" aria-hidden="true"></i> Mouse Moves : <data id="openscr_mouse"></data>
                         </div>
                     </div>
                 </div>
@@ -310,10 +321,10 @@ $projects = $ctpdata['projects'];
         $sscr  = $(this).parents(".single-screenshot");
         $oscr = $("#openscr_modal");
         $oscr.find("#openscr_img").attr("src",$(this).attr("src"));
-        $oscr.find("#openscr_time").text($sscr.find("#time").text());
-        $oscr.find("#openscr_project").text($sscr.find("#project").text());
-        $oscr.find("#openscr_key").text($sscr.find(".keystroke").width());
-        $oscr.find("#openscr_mouse").text($sscr.find(".mousemove").width());
+        $oscr.find("#openscr_time").text($sscr.find(".time").text());
+        $oscr.find("#openscr_project").text($sscr.find(".project").text());
+        $oscr.find("#openscr_key").text($sscr.find(".keystroke").attr("kstroke"));
+        $oscr.find("#openscr_mouse").text($sscr.find(".mousemove").attr("mclick"));
         $oscr.modal("show");
     })
 </script>
@@ -342,9 +353,11 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
             start = moment().startOf('month');
             end = moment().endOf('month');
         }
+
         function cb(start, end) {
             $('#daterangepickerinput').val(start.format('YYYY/M/D') + ' - ' + end.format('YYYY/M/D'));
         }
+
         $('#daterangepickerinput').daterangepicker({
             autoUpdateInput: false,
             startDate: start,
@@ -358,8 +371,19 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
                 'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
             }
         }, cb);
+
         cb(start, end);
         var max = 2100;
+
+        $("#amt_uid_input").change(function(){
+            var uid = $(this).val();
+            if(uid=="" || uid==undefined)
+                return;
+            $("#_timeto").html("");
+            $("#_timefrom").html("");
+            $('#amt_date_input').val("");
+            getmemberprojects(uid);
+        })
 
         $('#amt_date_input').daterangepicker({
             autoUpdateInput: false,
@@ -369,19 +393,13 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
             maxYear: max
         }, onlydate);
 
-        function onlydate(start,end)
-        {
-            var d = start.format('YYYY/M/D');
-            $('#amt_date_input').val(d);
-            var uid = $('#amt_uid_input').val();
-            if(uid!=undefined && uid!='' && d!=undefined && d!='')
-                getavailabletimes(d,uid);
-        }
+/*
         $('#amt_mid_input').change(function(){
             $('#amt_date_input').val('');
             $("#_timefrom").html('');
             $("#_timeto").html('');
         });
+*/
 
         $("#_timefrom").change(function () {
             var slot = $(this).val();
@@ -390,8 +408,16 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
         });
     });
 
-    function getavailabletimes(date,uid)
-    {
+    function onlydate(start,end){
+        var d = start.format('YYYY/M/D');
+        var uid = $('#amt_uid_input').val();
+        if(uid=="" || uid==undefined){alert("Please select a member first.");return;}
+        var pid = $('#amt_projectid_select').val();
+        if(pid=="" || pid==undefined){alert("Please select a project first.");return;}
+        $('#amt_date_input').val(d);
+        getavailabletimes(d,uid);
+    }
+    function getavailabletimes(date,uid){
         $.ajax({
             type: "GET",
             url: ajaxurl+"?op=getavailabletimesbydate&date="+date+"&uid="+uid,
@@ -405,19 +431,13 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
             }
         })
     }
-
-
-    function appendfromoptions($e,setslot) {
+    function appendfromoptions($e,setslot){
         var s = '', h = '', m = '', a = '',o='';
-        o += '<option value="" selected>FROM TIME</option>';
+        o += '<option value="" selected>From Time</option>';
         for (i = 0; i < 24; i++) {
             h = ("0" + i).slice(-2);
-            if (i < 12)
-                a = 'am';
-            else
-                a = 'pm';
+            if (i < 12){a = 'am';}else{a = 'pm';}
             if(i==0){h = 12;}else{h = ("0" + i).slice(-2);}
-
             for (j = 0; j < 60; j = j + 10) {
                 m = ("0" + j).slice(-2);
                 s = String(h) + ':' + String(m) + a;
@@ -429,19 +449,14 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
         }
         $e.html(o);
     }
-    function appendtooptions($e,setslot,after) {
+    function appendtooptions($e,setslot,after){
         var s = '', h = '', m = '', a = '',o='';
-        o += '<option value="" selected>TO TIME</option>';
+        o += '<option value="" selected>To Time</option>';
         var start =0;
         for (i = 0; i < 24; i++) {
             h = ("0" + i).slice(-2);
-            if (i < 12)
-                a = 'am';
-            else
-                a = 'pm';
-
+            if (i < 12){a = 'am';}else{a = 'pm';}
             if(i==0){h = 12;}else{h = ("0" + i).slice(-2);}
-
             for (j = 0; j < 60; j = j + 10) {
                 m = ("0" + j).slice(-2);
                 s = String(h) + ':' + String(m) + a;
@@ -456,6 +471,29 @@ echo $this->Html->script('daterangepicker/daterangepicker.min.js');
             }
         }
         $e.html(o);
+    }
+    function getmemberprojects(userid){
+
+        $.ajax({
+            type: "GET",
+            url: ajaxurl+"?op=getmemberprojects&uid="+userid,
+            dataType: "json",
+            beforeSend: function(){
+                $html = '<option value="">Choose One</option>';
+                $("#amt_projectid_select").html($html);
+            },
+            success: function (resp) {
+                if(resp.status=='success') {
+                    var data = resp.data;
+
+                    for(i=0;i<data.length;i++)
+                    {
+                        $html = '<option value="'+data[i].project_id+'">'+data[i].project_name+'</option>';
+                        $("#amt_projectid_select").append($html);
+                    }
+                }
+            }
+        })
     }
 
 </script>

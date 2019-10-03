@@ -94,7 +94,8 @@ Router::prefix('api', function ($routes) {
     $routes->connect('/projects', ['controller' => 'Api', 'action' => 'getprojects']);
     $routes->connect('/tasks', ['controller' => 'Api', 'action' => 'gettasks']);
     $routes->connect('/time', ['controller' => 'Api', 'action' => 'gettime']);
+    $routes->connect('/storereport', ['controller' => 'Api', 'action' => 'storereport']);
 
-
+    $routes->connect('/test', ['controller' => 'Api', 'action' => 'test']);
     $routes->fallbacks('InflectedRoute');
 });

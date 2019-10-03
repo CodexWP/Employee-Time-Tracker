@@ -36,8 +36,8 @@ class TimesheetsTable extends Table
         parent::initialize($config);
 
         $this->setTable('timesheets');
-        $this->setDisplayField('timeid');
-        $this->setPrimaryKey('timeid');
+        $this->setDisplayField(['userid','time_slot']);
+        $this->setPrimaryKey(['userid','time_slot']);
         $this->addBehavior('Timestamp');
     }
 
@@ -50,22 +50,18 @@ class TimesheetsTable extends Table
     public function validationDefault(Validator $validator)
     {
         $validator
-            ->integer('timeid')
-            ->allowEmpty('timeid', 'create');
-
-        $validator
             ->integer('userid')
-            ->requirePresence('userid', 'create')
+            ->requirePresence('userid', 'create','User ID can not be empty.')
             ->notEmpty('userid');
 
         $validator
             ->date('day')
-            ->requirePresence('day', 'create')
+            ->requirePresence('day', 'create', 'Day can not be empty.')
             ->notEmpty('day');
 
         $validator
             ->dateTime('time_slot')
-            ->requirePresence('time_slot', 'create')
+            ->requirePresence('time_slot', 'create', 'Time Slot can not be empty.')
             ->notEmpty('time_slot');
 
         $validator
@@ -74,7 +70,7 @@ class TimesheetsTable extends Table
 
         $validator
             ->integer('project_id')
-            ->requirePresence('project_id', 'create')
+            ->requirePresence('project_id', 'create', 'Project ID can not be empty.')
             ->notEmpty('project_id');
 
         $validator
@@ -109,9 +105,11 @@ class TimesheetsTable extends Table
      * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
      * @return \Cake\ORM\RulesChecker
      */
+    /*
     public function buildRules(RulesChecker $rules)
     {
         $rules->add($rules->isUnique(['time_slot']));
         return $rules;
     }
+    */
 }

@@ -53,6 +53,9 @@ class AjaxController extends AppController
                 case 'getprojectmembers':
                     $data = $this->getprojectmembers();/*final verified*/
                     break;
+                case 'getmemberprojects':
+                    $data = $this->getmemberprojects();
+                    break;
                 case 'getprojectlist':
                     $data = $this->getprojectlist();/*final verified*/
                     break;
@@ -152,6 +155,32 @@ class AjaxController extends AppController
        
     }
 
+    private function getmemberprojects(){
+        if(!$this->isadmin())
+        {
+            return array('status'=>'failed','message'=>'Permission denied');
+        }
+
+        $uid = $this->request->getQuery('uid');
+        $pmmodel = $this->loadModel('Projectmembers');
+        $project = $pmmodel->find("all")
+            ->select(['p.project_name','Projectmembers.project_id'])
+            ->join([
+                'p'=>[
+                    'table' => 'projects',
+                    'type' => 'INNER',
+                    'conditions' => 'Projectmembers.project_id = p.project_id',
+                ],
+            ])
+            ->where(['Projectmembers.userid'=>$uid]);
+
+        $projects = array();
+        foreach ($project as $pro)
+            $projects[] = array('project_id'=>$pro->project_id,'project_name'=> $pro->p['project_name']);
+        return array('status'=>'success','data'=>$projects);
+
+    }
+
     private function getavailabletimesbydate()
     {
         $date = (new Time($this->request->getQuery('date')))->format('Y/m/d');
@@ -164,7 +193,7 @@ class AjaxController extends AppController
             $slots = array();
             foreach ($query as $result)
             {
-                $slots[] = $result->time_slot->format('h:ia');
+                $slots[] = $result->time_slot->format('H:ia');
             }
             $data= array('status'=>'success','result'=>$slots);
         }

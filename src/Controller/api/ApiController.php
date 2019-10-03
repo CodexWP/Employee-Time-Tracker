@@ -15,11 +15,36 @@ class ApiController extends AppController
     {
         parent::initialize();
         $this->loadModel('Users');
-        $this->Auth->allow(['login',]);
+        $this->Auth->allow(['login','test']);
     }
 
     public function beforeFilter(Event $event) {
         parent::beforeFilter($event);
+    }
+
+    public function test()
+    {
+        $d = new \DateTime('now');
+        $time = strtotime($d->format(("Y-m-d h:i:sa")));
+        $day = $d->format("Y-m-d");
+        $data = $this->request->getData();
+
+        echo $d->format(("Y-m-d h:i:sa"));
+        echo '<br>';
+        echo date("Y-m-d h:i:sa", time());
+        echo '<br>';
+        echo $time;
+        exit;
+    }
+    private function cakeerrortostring($errors=array())
+    {
+        $e = "";
+        foreach ($errors as $key => $value) {
+            foreach ($value as $k => $v) {
+                $e = $e . '<li>' . $v . '</li>';
+            }
+        }
+        return $e;
     }
 
     /**
@@ -55,10 +80,22 @@ class ApiController extends AppController
 
     public function gettime()
     {
-        $time = time();
+        $d = new \DateTime('now');
+        $time = strtotime($d->format(("Y-m-d h:i:sa")));
+        $day = $d->format("Y-m-d");
+        $data = $this->request->getData();
+        $userid = $data['userid'];
+        $tsmodel = $this->loadModel('Timesheets');
+        $query = $tsmodel->find();
+        $query = $query->select(['minutes' => $query->func()->sum('minutes')])
+            ->where(['userid'=>$userid,'day'=>$day]);
+        foreach ($query as $q)
+            $min = $q->minutes;
+        if(empty($min)){$min=0;}
+        $resp = array("time"=>$time,"minutes"=>$min);
         $status = 1;
-        $this->set(compact('time', 'status'));
-        $this->set('_serialize', ['time', 'status']);
+        $this->set(compact('resp', 'status'));
+        $this->set('_serialize', ['resp', 'status']);
     }
 
     public function getprojects(){
@@ -118,5 +155,51 @@ class ApiController extends AppController
         }
     }
 
+    public function storereport()
+    {
+        if($this->request->is('post')) {
+            $data = $this->request->getData();
+            $time_slot = $data['time_slot'];
+            $arr = explode(" ", $time_slot);
+            $day = $arr[0];
+            $ssb64 = base64_decode($data['screenshot']);
+            $path = WWW_ROOT . 'img/screenshots/';
+            $file = uniqid() . ".png";
+            file_put_contents($path . $file, $ssb64);
+            $url = \Cake\Routing\Router::url('/', true) . "img/screenshots/" . $file;
+            $pmodel = $this->loadModel("Projects");
+            $projects = $pmodel->get($data['pid']);
+            $tmp = array(
+                'day' => $day,
+                'project_id' => $data['pid'],
+                'project_name' => $projects->project_name,
+                'userid' => $data['userid'],
+                'minutes' => $data['total_min'],
+                'screenshot' => $url,
+                'time_slot' => $time_slot,
+                'screenshot_time' => $time_slot
+            );
+            $tsmodel = $this->loadModel('Timesheets');
+            $ts = $tsmodel->newEntity();
+            $timesheet = $tsmodel->patchEntity($ts, $tmp);
+            if (count($timesheet->getErrors()) > 0) {
+                $error = $this->cakeerrortostring($timesheet->getErrors());
+                throw new UnauthorizedException($error);
+            } else {
+                if ($tsmodel->save($timesheet)) {
+                    $resp = array("status" => "success");
+                } else {
+                    throw new UnauthorizedException("Something is wrong.");
+                }
+            }
+            $status = 1;
+            $this->set(compact('resp', 'status'));
+            $this->set('_serialize', ['resp', 'status']);
+        }
+        else
+        {
+            throw new UnauthorizedException("Invalid request.");
+        }
+    }
 
 }
